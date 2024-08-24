@@ -19,10 +19,13 @@ def main(
 ):
     # ---- REPLACE THIS WITH YOUR OWN CODE ----
     logger.info("Pull VLP dataset from Github")
-    df = pd.read_csv('https://raw.githubusercontent.com/tyrel-glass/Public-VLP-Dataset/main/Public_VLP_Dataset.csv', index_col = 'index')
+    df = pd.read_csv(
+        "https://raw.githubusercontent.com/tyrel-glass/Public-VLP-Dataset/main/Public_VLP_Dataset.csv",
+        index_col="index",
+    )
     df.to_csv(output_path)
 
-    logger.success("VLP dataset saved to: "+str(output_path))
+    logger.success("VLP dataset saved to: " + str(output_path))
     # -----------------------------------------
 
 
