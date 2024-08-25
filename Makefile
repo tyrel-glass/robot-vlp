@@ -56,11 +56,18 @@ create_environment:
 # PROJECT RULES                                                                 #
 #################################################################################
 
+## Pull VLP Dataset
+data/external/vlp_dataset.csv : robot_vlp/data/pull_vlp_data.py
+	$(PYTHON_INTERPRETER) robot_vlp/data/pull_vlp_data.py
+
+## Create VLP models
+models/vlp/vlp_models : data/external/vlp_dataset.csv robot_vlp/data/gen_vlp_model.py
+	$(PYTHON_INTERPRETER) robot_vlp/data/gen_vlp_model.py
 
 ## Make Dataset
 .PHONY: data
 data: requirements
-	$(PYTHON_INTERPRETER) robot_vlp/dataset.py
+	$(PYTHON_INTERPRETER) robot_vlp/data/pull_vlp_data.py
 
 
 #################################################################################

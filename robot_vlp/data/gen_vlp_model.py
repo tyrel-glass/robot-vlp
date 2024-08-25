@@ -27,14 +27,22 @@ def main(
     # -----------------------------------------
     logger.info("Reading vlp dataset")
     df = pd.read_csv(vlp_dataset_path, index_col=0)
-    build_model(df=df, train_samples=40, name="low_acc", output_path=output_path)
-    build_model(df=df, train_samples=400, name="med_acc", output_path=output_path)
-    build_model(df=df, train_samples=4000, name="high_acc", output_path=output_path)
-    logger.success("Processing dataset complete.")
+
+    
+    model_dic = {
+        "low_acc":build_model(df=df, train_samples=40 ),
+        "med_acc": build_model(df=df, train_samples=400),
+        "high_acc":build_model(df=df, train_samples=4000)
+    }
+
+
+    models_filename = output_path / "vlp_models"
+    pickle.dump(model_dic, open(models_filename, "wb"))
+    logger.success("Created VLP models")
     # -----------------------------------------
 
 
-def build_model(df, train_samples: int, name, output_path):
+def build_model(df, train_samples: int):
     X = df.iloc[:, :11]
     y = df.iloc[:, 11:]
 
@@ -49,11 +57,10 @@ def build_model(df, train_samples: int, name, output_path):
     errs = np.sqrt(
         np.square(y_pre[:, 0] - y_test.values[:, 0]) + np.square(y_pre[:, 1] - y_test.values[:, 1])
     )
-    logger.info("mean error of: " + str(errs.mean()) + "for model: " + name)
+    logger.info("mean error of: " + str(errs.mean()) + str(train_samples)+" training samples")
 
-    # save the model to disk
-    model_filename = output_path / name
-    pickle.dump(regr, open(model_filename, "wb"))
+    return regr
+
 
 
 if __name__ == "__main__":
