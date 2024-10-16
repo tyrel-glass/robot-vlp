@@ -9,8 +9,6 @@ from robot_vlp.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, EXTERNAL_DATA_DIR
 app = typer.Typer()
 
 
-
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
