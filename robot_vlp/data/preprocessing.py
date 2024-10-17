@@ -5,6 +5,55 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from robot_vlp.config import INTERIM_DATA_DIR, PROCESSED_DATA_DIR
 
+
+def build_train_data():
+    data_dir = INTERIM_DATA_DIR / 'path_data'
+
+    ###########################################
+    # CONFIG PARAMETERS (to be passed via cmd)
+    ###########################################
+    file_list = [file_name for file_name in data_dir.iterdir() if file_name.stem[0] != "."]
+    train_files, valid_files, test_files = train_test_split_list(file_list)
+    overlap = 0.5
+    window_len = 10
+
+    ##########################################
+
+    X_scaler = build_scaler()
+
+    X_train_data, y_train_data = load_data(train_files)
+    X_valid_data, y_valid_data = load_data(valid_files)
+    X_test_data, y_test_data = load_data(test_files)
+
+    X_train_window, y_train = create_windows(X_train_data, y_train_data, overlap, window_len)
+    X_valid_window, y_valid = create_windows(X_valid_data, y_valid_data, overlap, window_len)
+    X_test_window, y_test = create_windows(X_test_data, y_test_data, overlap, window_len)
+
+    X_train = apply_scaler(X_train_window, X_scaler)
+    X_valid = apply_scaler(X_valid_window, X_scaler)
+    X_test = apply_scaler(X_test_window, X_scaler)
+
+    data_dic = {
+        'train_files':train_files,
+        'valid_files':valid_files,
+        'test_files':test_files,
+        'X_train_data':X_train_data,
+        'X_valid_data':X_valid_data,
+        'X_test_data':X_test_data,
+        'y_train_data':y_train_data,
+        'y_valid_data':y_valid_data,
+        'y_test_data':y_test_data,
+        'X_train':X_train,
+        'X_valid':X_valid,
+        'X_test':X_test,
+        'y_train':y_train,
+        'y_valid':y_valid,
+        'y_test':y_test
+    }
+
+    with open(PROCESSED_DATA_DIR/'model_train_test_data.pickle', 'wb') as handle:
+        pickle.dump(data_dic, handle)
+
 def build_scaler():
     X_limits = np.array([
         [0,0,-180,0,0],
@@ -41,7 +90,7 @@ def window_data(X,y, overlap = 0.5 ,window_len = 10):
         end_index += window_len - overlap_samples
     return np.array(X_lst), np.array(y_lst)
 
-# X_train, y_train = window_data(X, y, overlap = 0.5, window_len = 10)
+
 
 
 def train_test_split_list(lst, train_prop = 0.8, valid_prop = 0.2):
@@ -114,50 +163,6 @@ def vector_to_ang(vector , unit = 'radians'):
          return theta* 180 / np.pi
     elif unit == 'radians':
         return theta
-    
-def ang_loss_fn(y_true, y_pred):
-    return keras.losses.cosine_similarity(y_true, y_pred) + 1
-
-
-def build_train_data():
-    data_dir = INTERIM_DATA_DIR / 'path_data'
-    file_list = [file_name for file_name in data_dir.iterdir() if file_name.stem[0] != "."]
-    train_files, valid_files, test_files = train_test_split_list(file_list)
-
-    X_scaler = build_scaler()
-
-    X_train_data, y_train_data = load_data(train_files)
-    X_valid_data, y_valid_data = load_data(valid_files)
-    X_test_data, y_test_data = load_data(test_files)
-
-    X_train_window, y_train = create_windows(X_train_data, y_train_data)
-    X_valid_window, y_valid = create_windows(X_valid_data, y_valid_data)
-    X_test_window, y_test = create_windows(X_test_data, y_test_data)
-
-    X_train = apply_scaler(X_train_window, X_scaler)
-    X_valid = apply_scaler(X_valid_window, X_scaler)
-    X_test = apply_scaler(X_test_window, X_scaler)
-
-    data_dic = {
-        'train_files':train_files,
-        'valid_files':valid_files,
-        'test_files':test_files,
-        'X_train_data':X_train_data,
-        'X_valid_data':X_valid_data,
-        'X_test_data':X_test_data,
-        'y_train_data':y_train_data,
-        'y_valid_data':y_valid_data,
-        'y_test_data':y_test_data,
-        'X_train':X_train,
-        'X_valid':X_valid,
-        'X_test':X_test,
-        'y_train':y_train,
-        'y_valid':y_valid,
-        'y_test':y_test
-    }
-
-    with open(PROCESSED_DATA_DIR/'model_train_test_data.pickle', 'wb') as handle:
-        pickle.dump(data_dic, handle)
 
 
 

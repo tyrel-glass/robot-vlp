@@ -20,29 +20,9 @@ from robot_vlp.config import MODELS_DIR, PROCESSED_DATA_DIR, FIGURES_DIR
 
 def train_mlp(
 ):
-    
+    # pull in processed dataset
     with open(PROCESSED_DATA_DIR/'model_train_test_data.pickle', 'rb') as handle:
-        data_dic = pickle.load(handle)
-
-    train_files = data_dic['train_files']
-    valid_files = data_dic['valid_files']
-    test_files = data_dic['test_files']
-
-    X_train_data = data_dic['X_train_data']
-    X_test_data = data_dic['X_test_data']
-    X_valid_data = data_dic['X_valid_data']
-
-    y_train_data = data_dic['y_train_data']
-    y_test_data = data_dic['y_test_data']
-    y_valid_data = data_dic['y_valid_data']
-
-    X_train = data_dic['X_test']
-    X_valid = data_dic['X_valid']
-    X_test = data_dic['X_test']
-
-    y_train = data_dic['y_test']
-    y_valid = data_dic['y_valid']
-    y_test = data_dic['y_test']
+        data = pickle.load(handle)
 
     def ang_loss_fn(y_true, y_pred):
         return keras.losses.cosine_similarity(y_true, y_pred) + 1
@@ -62,12 +42,12 @@ def train_mlp(
                 #   loss_weights = [1.],
                 )
     
-    logger.info("Training some model...")
+    logger.info("Training the model")
     history = model.fit(
-        x = X_train, 
-        y = [y_train[:,0], y_train[:,1], p.ang_to_vector(y_train[:,2], unit = 'degrees').numpy()],
+        x = data['X_train'], 
+        y = [data['y_train'][:,0], data['y_train'][:,1], p.ang_to_vector(data['y_train'][:,2], unit = 'degrees').numpy()],
         epochs = 50,
-        validation_data =    (X_valid, [y_valid[:,0], y_valid[:,1], p.ang_to_vector(y_valid[:,2], unit = 'degrees').numpy()])                               
+        validation_data =    (data['X_valid'], [data['y_valid'][:,0], data['y_valid'][:,1], p.ang_to_vector(data['y_valid'][:,2], unit = 'degrees').numpy()])                               
     )
     logger.success("Modeling training complete.")
     # -----------------------------------------
@@ -87,7 +67,7 @@ def plot(history):
     plt.plot(history.history['val_loss2_loss'],"-x", label = 'valid loss 2')
     plt.plot(history.history['val_loss3_loss'],"-x",label = 'valid loss 3')
     plt.legend()
+    plt.savefig(FIGURES_DIR/'mlp_training.png')
 
-    plt.savefig(FIGURES_DIR/'mpl_traing.png')
-
-train_mlp()
+if __name__ == "__main__":
+    train_mlp()

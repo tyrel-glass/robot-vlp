@@ -72,17 +72,21 @@ create_environment:
 
 
 ## Train the model
+# .PHONY: train_model
+# train_model : models/model_01.keras
+models/model_01.keras: robot_vlp/modeling/train_mlp.py data/processed/model_train_test_data.pickle 
+	$(PYTHON_INTERPRETER) robot_vlp/modeling/train_mlp.py
 
 
 ## Process the paths into a dataset
-.PHONY: build_dataset
-build_dataset : data/processed/model_train_test_data.pickle 
+# .PHONY: build_dataset
+# build_dataset : data/processed/model_train_test_data.pickle 
 data/processed/model_train_test_data.pickle : robot_vlp/data/preprocessing.py data/interim/path_data
 	$(PYTHON_INTERPRETER) robot_vlp/data/preprocessing.py
 
 ## Generate path datasets
-.PHONY:  run_robot_path
-run_robot_path: data/interim/path_data
+# .PHONY:  run_robot_path
+# run_robot_path: data/interim/path_data
 data/interim/path_data : models/vlp/vlp_models.pkl robot_vlp/data/path_generation.py robot_vlp/robot.py
 	$(PYTHON_INTERPRETER) robot_vlp/data/path_generation.py
 
