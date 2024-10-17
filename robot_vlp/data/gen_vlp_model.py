@@ -36,7 +36,7 @@ def main(
     }
 
 
-    models_filename = output_path / "vlp_models"
+    models_filename = output_path / "vlp_models.pkl"
     pickle.dump(model_dic, open(models_filename, "wb"))
     logger.success("Created VLP models")
     # -----------------------------------------

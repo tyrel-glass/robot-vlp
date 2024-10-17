@@ -24,6 +24,9 @@ def apply_scaler(X_data, scaler):
 
 
 def window_data(X,y, overlap = 0.5 ,window_len = 10):
+    """
+    Used to split X,y arrays into windows
+    """
     overlap_samples = int(overlap * window_len)
     start_index = 0
     end_index = window_len
@@ -73,6 +76,9 @@ def load_data(file_list):
         
 
 def create_windows(x, y, overlap = 0.5, window_len = 10):
+    """
+    
+    """
     x_lst = []
     y_lst = []
     # for file_name in file_list:
@@ -114,7 +120,8 @@ def ang_loss_fn(y_true, y_pred):
 
 
 def build_train_data():
-    file_list = [file_name for file_name in INTERIM_DATA_DIR.iterdir() if file_name.stem[0] != "."]
+    data_dir = INTERIM_DATA_DIR / 'path_data'
+    file_list = [file_name for file_name in data_dir.iterdir() if file_name.stem[0] != "."]
     train_files, valid_files, test_files = train_test_split_list(file_list)
 
     X_scaler = build_scaler()

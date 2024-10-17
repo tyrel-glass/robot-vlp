@@ -1,3 +1,8 @@
+""""
+This code creates a target paths, then generates robots with various error parameters to navigate these paths.
+The resulting datasets are then stored in the INERM_DATA_DIR
+"""
+
 from pathlib import Path
 
 import typer
@@ -8,14 +13,12 @@ from robot_vlp.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, EXTERNAL_DATA_DIR
 
 app = typer.Typer()
 
-
 import pandas as pd
 import matplotlib.pyplot as plt
 import numpy as np
 from numpy.random import seed
 import pickle
 import robot_vlp.robot as r
-
 
 
 @app.command()
@@ -26,6 +29,9 @@ def main():
     vlp_dataset_path = EXTERNAL_DATA_DIR / "vlp_dataset.csv"
     df = pd.read_csv(vlp_dataset_path, index_col=0)
     logger.success('Pulled in VLP dataset')
+
+    folder_path = INTERIM_DATA_DIR / 'path_data'
+    folder_path.mkdir(parents = False, exist_ok = True)
 
     vlp_model_dic = read_vlp_models()
 
@@ -64,8 +70,7 @@ def main():
 
                         data_dic = {'X':X_data, 'y':y_data}
 
-                        folder_path = '../../data/interim/'
-                        file_path = INTERIM_DATA_DIR / name
+                        file_path = folder_path / name
                         pickle.dump(data_dic, open(file_path , 'wb')) 
 
                         # plot_path(data = data_dic, name = name)
@@ -75,7 +80,7 @@ def main():
 def read_vlp_models():
     """Reads in the vlp model"""
     
-    vlp_models_path = VLP_MODELS_DIR / "vlp_models"
+    vlp_models_path = VLP_MODELS_DIR / "vlp_models.pkl"
     return pickle.load(open(vlp_models_path, 'rb'))
 
 def in_bounds(robot,x_lim, y_lim):
@@ -92,6 +97,9 @@ X_labels = ["encoder_x_hist", "encoder_y_hist", "encoder_heading_hist", "vlp_x_h
 y_labels = ["x_hist", "y_hist", "heading_hist"]
 
 def create_poly_targets(n):
+    """
+    Creates a list of n equally spaces points that lie on the circumfrence of a circle
+    """
     r = 2
     c = 3.5,3
     target_points = np.array([[r*np.cos(ang)+c[0], r*np.sin(ang)+c[1]] for ang in np.linspace(0,2*np.pi, n+1)[1:]])

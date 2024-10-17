@@ -39,6 +39,16 @@ format:
 	black --config pyproject.toml robot_vlp
 
 
+.PHONY reset:
+reset:
+##	Remove processed dataset
+	rm data/processed/model_train_test_data.pickle
+##	Remove all generated path data
+	rm data/interim/path_data 
+##	Remove vlp models
+	rm models/vlp/vlp_models.pkl
+## Remove vlp dataset
+	rm data/external/vlp_dataset.csv
 
 
 ## Set up python interpreter environment
@@ -56,19 +66,33 @@ create_environment:
 # PROJECT RULES                                                                 #
 #################################################################################
 
+
+
+## Test the model
+
+
+## Train the model
+
+
+## Process the paths into a dataset
+.PHONY: build_dataset
+build_dataset : data/processed/model_train_test_data.pickle 
+data/processed/model_train_test_data.pickle : robot_vlp/data/preprocessing.py data/interim/path_data
+	$(PYTHON_INTERPRETER) robot_vlp/data/preprocessing.py
+
+## Generate path datasets
+.PHONY:  run_robot_path
+run_robot_path: data/interim/path_data
+data/interim/path_data : models/vlp/vlp_models.pkl robot_vlp/data/path_generation.py robot_vlp/robot.py
+	$(PYTHON_INTERPRETER) robot_vlp/data/path_generation.py
+
+## Create VLP models
+models/vlp/vlp_models.pkl : data/external/vlp_dataset.csv robot_vlp/data/gen_vlp_model.py
+	$(PYTHON_INTERPRETER) robot_vlp/data/gen_vlp_model.py
+
 ## Pull VLP Dataset
 data/external/vlp_dataset.csv : robot_vlp/data/pull_vlp_data.py
 	$(PYTHON_INTERPRETER) robot_vlp/data/pull_vlp_data.py
-
-## Create VLP models
-models/vlp/vlp_models : data/external/vlp_dataset.csv robot_vlp/data/gen_vlp_model.py
-	$(PYTHON_INTERPRETER) robot_vlp/data/gen_vlp_model.py
-
-## Make Dataset
-.PHONY: data
-data: requirements
-	$(PYTHON_INTERPRETER) robot_vlp/data/pull_vlp_data.py
-
 
 #################################################################################
 # Self Documenting Commands                                                     #
