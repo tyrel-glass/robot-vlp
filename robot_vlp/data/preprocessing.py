@@ -17,6 +17,8 @@ def build_train_data():
     overlap = 0.5
     window_len = 10
 
+    dataset_save_name = 'model_train_test_data.pickle'
+
     ##########################################
 
     X_scaler = build_scaler()
@@ -51,7 +53,7 @@ def build_train_data():
         'y_test':y_test
     }
 
-    with open(PROCESSED_DATA_DIR/'model_train_test_data.pickle', 'wb') as handle:
+    with open(PROCESSED_DATA_DIR/dataset_save_name, 'wb') as handle:
         pickle.dump(data_dic, handle)
 
 def build_scaler():
@@ -163,8 +165,6 @@ def vector_to_ang(vector , unit = 'radians'):
          return theta* 180 / np.pi
     elif unit == 'radians':
         return theta
-
-
 
 
 if __name__ == "__main__":
