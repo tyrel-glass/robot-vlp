@@ -21,40 +21,45 @@ from robot_vlp.config import MODELS_DIR, PROCESSED_DATA_DIR, FIGURES_DIR
 def train_mlp(
 ):
     # pull in processed dataset
-    with open(PROCESSED_DATA_DIR/'model_train_test_data.pickle', 'rb') as handle:
+    with open(PROCESSED_DATA_DIR/'data.pickle', 'rb') as handle:
         data = pickle.load(handle)
 
     def ang_loss_fn(y_true, y_pred):
         return keras.losses.cosine_similarity(y_true, y_pred) + 1
+    
 
-    input_ = keras.layers.Input(shape=(10, 5))
+    # ------------------------------------------------------------------
+    input_ = keras.layers.Input(shape=(data['X_train'].shape[1], 5))
     flat_input = keras.layers.Flatten()(input_)
     hidden1 = keras.layers.Dense(10)(flat_input)
     hidden2 = keras.layers.Dense(20)(hidden1)
-    out1 = keras.layers.Dense(1, name='loss1')(hidden2)
-    out2 = keras.layers.Dense(1, name='loss2')(hidden2)
-    out3 = keras.layers.Dense(2, name='loss3')(hidden2)
+    hidden3 = keras.layers.Dense(20)(hidden2)
+    out1 = keras.layers.Dense(2, name='loss1')(hidden3)
+    out2 = keras.layers.Dense(2, name='loss2')(hidden3)
 
-    model = keras.Model(inputs = [input_], outputs = [out1,out2,out3])
+    model = keras.Model(inputs = [input_], outputs = [out1,out2])
+
+
+  
 
     model.compile(optimizer='adam',
-                loss = ['mse','mse',ang_loss_fn],
+                loss = ['mse',ang_loss_fn],
                 #   loss_weights = [1.],
                 )
     
     logger.info("Training the model")
     history = model.fit(
         x = data['X_train'], 
-        y = [data['y_train'][:,0], data['y_train'][:,1], p.ang_to_vector(data['y_train'][:,2], unit = 'degrees').numpy()],
-        epochs = 50,
-        validation_data =    (data['X_valid'], [data['y_valid'][:,0], data['y_valid'][:,1], p.ang_to_vector(data['y_valid'][:,2], unit = 'degrees').numpy()])                               
+        y = [data['y_train'][:,[0,1]], p.ang_to_vector(data['y_train'][:,2], unit = 'degrees').numpy()],
+        epochs = 200,
+        validation_data =    (data['X_valid'], [data['y_valid'][:,[0,1]], p.ang_to_vector(data['y_valid'][:,2], unit = 'degrees').numpy()])                               
     )
     logger.success("Modeling training complete.")
     # -----------------------------------------
-
-    plot(history)
-
     model.save(MODELS_DIR / 'model_01.keras')
+    # plot(history)
+
+    
 
 def plot(history):
     plt.plot(history.history['loss'], label = 'total loss')

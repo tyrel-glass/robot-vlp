@@ -5,13 +5,13 @@ class Robot:
   def __init__(self, x, y, heading, step_err, turn_err,df, vlp_mod, target_x= 0 , target_y = 0 , navigation_method = 'odometer', nav_model = None ):
     self.x = x
     self.vlp_x = x
-    self.model_x = 0
+    self.model_x = x
     self.y = y
     self.vlp_y = y
-    self.model_y = 0
+    self.model_y = y
     self.heading = heading
     self.vlp_heading = heading
-    self.model_heading = 0
+    self.model_heading = heading
     self.step_err = step_err
     self.turn_err = turn_err
     self.df = df
@@ -78,11 +78,11 @@ class Robot:
     self.get_vlp_heading()
     self.vlp_heading_hist.append(self.vlp_heading)
 
-    self.heading_hist.append(self.heading)
+    self.heading_hist.append(self.clip_angle(self.heading))
 
     self.encoder_y_hist.append(self.encoder_y)
     self.encoder_x_hist.append(self.encoder_x)
-    self.encoder_heading_hist.append(self.encoder_heading)
+    self.encoder_heading_hist.append(self.clip_angle(self.encoder_heading))
 
 
   def get_vlp_position(self):
@@ -120,7 +120,12 @@ class Robot:
 
     ang_to_tar = np.arctan2(x_d, y_d)*180/np.pi
     return ang_to_tar
-  
+  def clip_angle(self, ang):
+    while ang > 180:
+        ang -= 360
+    while ang < -180:
+      ang += 360
+    return ang
   def correct_heading(self):
 
     ang_to_tar = self.calc_heading_to_target()

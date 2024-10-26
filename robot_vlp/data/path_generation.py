@@ -102,7 +102,7 @@ def create_poly_targets(n):
     """
     r = 2
     c = 3.5,3
-    target_points = np.array([[r*np.cos(ang)+c[0], r*np.sin(ang)+c[1]] for ang in np.linspace(0,2*np.pi, n+1)[1:]])
+    target_points = np.array([[r*np.cos(ang)+c[0], r*np.sin(ang)+c[1]] for ang in np.linspace(0,2*np.pi, n+1)[1:]+np.pi/4])
     return target_points
 
 def plot_path(data, name):

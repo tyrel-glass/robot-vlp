@@ -5,19 +5,37 @@ import numpy as np
 from sklearn.preprocessing import MinMaxScaler
 from robot_vlp.config import INTERIM_DATA_DIR, PROCESSED_DATA_DIR
 
+import typer
+from typing_extensions import Annotated
+from typing import List
+from loguru import logger
+from tqdm import tqdm
+from pathlib import Path
 
-def build_train_data():
-    data_dir = INTERIM_DATA_DIR / 'path_data'
+app = typer.Typer()
+
+@app.command()
+def build_train_data(
+
+        dataset_save_name: Annotated[str, typer.Option()]= 'data.pickle',
+        overlap: Annotated[float, typer.Option] = 0.9,
+        window_len : Annotated[int, typer.Option] = 10,
+        skip : Annotated[List[str], typer.Option] = [" "],
+ 
+):
+    
+    data_dir = INTERIM_DATA_DIR / 'path_data' # pull from default spot
 
     ###########################################
     # CONFIG PARAMETERS (to be passed via cmd)
     ###########################################
-    file_list = [file_name for file_name in data_dir.iterdir() if file_name.stem[0] != "."]
-    train_files, valid_files, test_files = train_test_split_list(file_list)
-    overlap = 0.5
-    window_len = 10
 
-    dataset_save_name = 'model_train_test_data.pickle'
+    file_list = path_filter(skip, mode = 'exclude')
+
+    train_files, valid_files, test_files = train_test_split_list(file_list)
+
+
+
 
     ##########################################
 
@@ -88,6 +106,7 @@ def window_data(X,y, overlap = 0.5 ,window_len = 10):
         y_win = y[start_index:end_index]
         X_lst.append(X_win)
         y_lst.append(y_win[-1])
+        # y_lst.append(y_win)
         start_index += window_len - overlap_samples
         end_index += window_len - overlap_samples
     return np.array(X_lst), np.array(y_lst)
@@ -166,6 +185,22 @@ def vector_to_ang(vector , unit = 'radians'):
     elif unit == 'radians':
         return theta
 
+def path_filter(pars, mode):
+    if type(pars) == dict:
+        par_list = list(pars.values())
+    elif type(pars) == list:
+        par_list = pars
+
+
+    data_dir = INTERIM_DATA_DIR / 'path_data'
+    file_list = [file_name for file_name in data_dir.iterdir() if file_name.stem[0] != "."]
+    tar_list = file_list
+    for par in par_list:
+        if mode == 'include':
+            tar_list = [e for e in tar_list if (par in str(e.stem))]
+        elif mode == 'exclude':
+            tar_list = [e for e in tar_list if (par not in str(e.stem))]
+    return tar_list
 
 if __name__ == "__main__":
-    build_train_data()
+    app()
