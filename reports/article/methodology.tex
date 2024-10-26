@@ -1,0 +1,69 @@
+
+\section{Methodology}
+
+%====================================== Simulation using real-world dataset =========================
+\subsection{Simulation using real-world VLP dataset}
+
+
+%-------------------------- VLP LOCALISATION ------------------------
+\subsubsection{VLP dataset}
+This section utilises the authors previous work in collecting a large, real world data set of VLP readings. 
+The dataset contains a fingerprint of 7344 locations where VLP reading were taken from 11 luminaries with ground truth provided by a the HTC vive tacking system. 
+The area covered by this dataset was 6.3m x 6.9m office lobby environment.
+
+\begin{figure}[h!]
+    \includegraphics[scale = 0.1]{{figures/robot_room_setup}}
+    \caption{grid of errors}
+    \label{fig:acc_grid}
+    \end{figure}
+
+
+The paper simulates a differential wheeled robot within the VLP fingerprint dataset. 
+The simulation keeps track of the current location of the robot, and when a VLP reading is required will find the closest datapoint available to the current co-ordinates, and use the VLP RSS vector at that point. 
+This introduces error into the VLP system, however the mean distance from a any point randomly chosen within the area to a VLP reading was 36mm, with the max being 80mm which is an order of magnitude lower than the typical performance of the VLP localisation algorithm used. 
+
+%-------------------------- Encoder Localisation ------------------------
+\subsubsection{Robot simulation}
+
+For this work, the following error model has been implemented:
+Turning:
+Each time the robot turns and angle theta, an error term of etheta is added. Where e is a value sampled from a continuous uniform ditribution centerd at 0 with width 2 x thetaerr. 
+This equates conceptually to a plus minus theta err  error in turning
+
+Moving forward:
+Each time the robot steps a distance d, an error term of e step is added.
+Where e step is a value sampled from a continuous uniform ditribution centerd at 0 with width 2 x step err. 
+This equates conceptually to a plusminus step err error in forward movement
+Both errors are proportional to the total movement, so that small movements will have less absoulue error.
+
+%-------------------------- GENERATED PATHS ------------------------
+\subsubsection{Generating path data}
+The inital traing dataset is created by the simulated robot tracing various paths using odometry with simulated errors to navigate. 
+The navigation targets are created by specifying a circle with radius $r$, and then specifying a number of points; $n$ where $2<=n<12$ which are then equally spaced around the circle. 
+The points are then assigned to be reached clockwise, anticlockwise, or randomly - where the list of targets is shuffled. 
+By specifying a range of values for $r$, with a range of $n$, three different ordering methods, and blank reppititions for each path,  blank different navigation paths are generated.
+\begin{figure}[h!]
+\includegraphics[scale = 1]{{../figures/nav_points_ex}}
+\caption{Example of three different navigation paths}
+\label{fig:nav_points_ex}
+\end{figure}
+
+
+
+
+
+\subsubsection{}
+% \begin{figure}[h!]
+% \includegraphics[scale = 0.3]{{../figures/acc_grid}}
+% \caption{grid of errors}
+% \label{fig:acc_grid}
+% \end{figure}
+
+
+
+% \begin{figure}[h!]
+% \includegraphics[scale = 0.3]{../figures/err_grid}
+% \caption{grid of errors}
+% \label{fig:err_grid}
+% \end{figure}
+

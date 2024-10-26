@@ -1,0 +1,103 @@
+\section{Introduction}
+%-------------------------- BACKGROUND ------------------------
+\subsection{Background and motivation}
+Robots capable of navigation hold immense utility across various sectors,
+including retail services, manufacturing, logistics, healthcare, domestic services, and warehouse management. 
+These robots are indispensable for tasks requiring movement from one location to another, such as collecting online orders from warehouses, transporting parts in assembly lines, distributing medication in hospitals, and cleaning floors in large facilities. 
+The ability to navigate autonomously or semi-autonomously enables robots to perform tasks efficiently and effectively, saving time and labor costs.
+
+Simple, lower-cost robots are more useful due to their affordability, accessibility, and versatility in performing a wide range of tasks in various environments. 
+Moreover, they are less prone to malfunction due to complexity, reducing the likelihood of issues such as regular software updates, crashing, and system failures, which can hinder the reliability and effectiveness of more complex and expensive robotic systems. 
+However there are significant drawbacks.
+
+This paper focuses on differential wheeled robots, also known as two-wheeled robots or differential drive robots, which are a common type of mobile robot design characterized by two independently driven wheels mounted on a common axis.
+
+These robots utilize differential steering to control their motion, where the speed and direction of each wheel can be adjusted independently to achieve different trajectories.
+By varying the relative speeds of the two wheels, the robot can move forward, backward, rotate in place, or follow curved paths.
+
+For simplicity the robots locomotion is restricted to moving forward (both wheels set to same speed and duration), and turning on the spot where both wheels turn at the same speed in opposite directions so that the location of the robot does not change. 
+
+\begin{figure}[h!]
+    \includegraphics[scale = 0.3]{{figures/diff_robot}}
+    \caption{differential robot}
+    \label{fig:acc_grid}
+    \end{figure}
+
+
+%-------------------------- DEAD RECKONING ------------------------
+\subsection{Dead reckoning positioning}
+
+Dead reckoning is the process of using estimated direction and distance movements to calculate position. 
+Due to changes in friction surfaces, varying battery levels, temperature variations, changing weight loads, errors between the estimated movement and actual movement occur.
+This means that each time the robot moves forward or turns (the only two options for the robot in this paper) the actual position of the robot will be different from the change calculated via dead reckoning. 
+
+Simple robots often rely on imperfect encoder data for navigation, resulting in progressive increases in the error of the robot's location and heading estimates over time. 
+These errors stem from the lack of accurate encoders, with some robots using simplistic methods such as timing the duration of motor activation as a proxy for distance or angle turned. 
+Additionally, variations in travel surfaces, fluctuations in battery states, wear and tear in the drive train components, and other environmental factors contribute to inaccuracies in encoder readings. 
+As a result, the navigation performance of simple robots becomes compromised, hindering their ability to carry out tasks effectively in dynamic environments.
+
+
+%-------------------------- VLP ------------------------
+\subsection{visible light positioning}
+Visible Light Positioning (VLP) offers significant benefits for indoor robot navigation. 
+Unlike GPS, which is unreliable indoors, VLP leverages pre-existing lighting infrastructure, to provide accurate localization information. 
+This makes it cost-effective and easily deployable in various indoor environments, including retail stores, warehouses, hospitals, and manufacturing facilities. 
+VLP provides high-precision positioning accuracy, typically in the centimeter range, enabling robots to navigate with precision and efficiency. 
+Additionally, VLP is not susceptible to signal degradation caused by obstacles or environmental factors, ensuring reliable performance even in complex indoor spaces. 
+Its compatibility with existing lighting infrastructure also facilitates seamless integration into smart building systems, further enhancing its utility for indoor robot navigation applications. 
+\begin{figure}[h!]
+    \includegraphics[scale = 0.1]{{figures/vlp_function}}
+    \caption{grid of errors}
+    \label{fig:acc_grid}
+    \end{figure}
+When a new position estimate is required, the VLP positioning engine takes a signal from the photodiode which has been filtered and digitised by an ADC at a sample rate of 20000 hz.
+The digital signals is then split into windows of size 1024, and then passed through an DFFT algorithm to extract the RSS components at the frequencies associated with each VLP luminare. 
+This vector of RSS readings to stationary luminars is then used to derive a position estimate. 
+VLP model
+Several different methods exist for converting the RSS signals into location co-ordinates.
+For this work a simple MLP regressor was trained that had an input neuron for each RSS reading, and two outputs, the x and y co-ordinates of the location estimate. 
+
+
+
+
+%-------------------------- Navigation ------------------------
+\subsection{Robot navigation}
+A basic approach to navigation is taken in which the objective is for the robot to reach a series of locations P1, P2, Pn. 
+Realistically the robot will never reach an exact point, therefore a threshold dt is specified, as being a distance that if the robot is closer to the target then, essentially means that robot has hit the objective.
+
+To move towards the current location target, a two step process is repeated. :
+
+
+heading adjustment -the robot turns a set angle ALPHA.
+
+
+Forward drive - the robot takes a step in the heading of size d
+
+
+To navigate to the target the robot will compute the difference between its heading and the heading towards the current target, and then adjust its heading appropriately.
+Following this it will move along the heading a distance d.
+This sequence of heading adjustment followed by movement will continue until the robot reaches all set target points.
+
+\begin{figure}[h!]
+    \includegraphics[scale = 0.3]{{figures/turn_step}}
+    \caption{Path planning steps:
+    Calculate difference between current heading and target.
+    Adjust current heading to target
+    Take step in new heading direction
+    Repeat}
+    \label{fig:turn_step}
+    \end{figure}
+
+
+
+
+\subsection{Proposed localisation model}
+The navigation ability of a simple robot is directly 
+This paper explores and presents a method of combining the advantages, whilst reducing the downsides of both systems. 
+It comprises of a positioning model that acts on data streams from both VLP and encoder positioning. 
+The output of this model is an estimate of the current location and heading of the robot.
+\begin{figure}[h!]
+    \includegraphics[scale = 0.3]{{figures/nn_pre_sch}}
+    \caption{The NN prediction model uses data from both VLP and }
+    \label{fig:nn_pre_sch}
+    \end{figure}
