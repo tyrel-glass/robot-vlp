@@ -84,8 +84,8 @@ high_data : data/processed/data.pickle
 data/processed/data.pickle : robot_vlp/data/preprocessing.py data/interim/path_data
 	$(PYTHON_INTERPRETER) robot_vlp/data/preprocessing.py \
 	--dataset-save-name data.pickle \
-	--window-len 30 \
-	--overlap 0.8
+	# --window-len 30 \
+	# --overlap 0.8
 
 #	# --skip err_2 \
 	# --skip err_3 \
@@ -99,6 +99,10 @@ data/processed/data.pickle : robot_vlp/data/preprocessing.py data/interim/path_d
 data/interim/path_data : models/vlp/vlp_models.pkl robot_vlp/data/path_generation.py robot_vlp/robot.py
 	$(PYTHON_INTERPRETER) robot_vlp/data/path_generation.py
 
+
+## Export VLP model stats
+reports/tables/vlp_performance.tex : models/vlp/vlp_models.pkl
+	$(PYTHON_INTERPRETER) robot_vlp/stats/vlp_model_performance.py
 ## Create VLP models
 models/vlp/vlp_models.pkl : data/external/vlp_dataset.csv robot_vlp/data/gen_vlp_model.py
 	$(PYTHON_INTERPRETER) robot_vlp/data/gen_vlp_model.py

@@ -18,6 +18,12 @@ from robot_vlp.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, EXTERNAL_DATA_DIR
 
 app = typer.Typer()
 
+model_training_samples_dic = {
+    'low_acc':40,
+    'med_acc':400,
+    'high_acc':4000
+}
+
 
 @app.command()
 def main(
@@ -28,12 +34,14 @@ def main(
     logger.info("Reading vlp dataset")
     df = pd.read_csv(vlp_dataset_path, index_col=0)
 
-    
-    model_dic = {
-        "low_acc":build_model(df=df, train_samples=40 ),
-        "med_acc": build_model(df=df, train_samples=400),
-        "high_acc":build_model(df=df, train_samples=4000)
-    }
+    model_dic = {}
+    for model_name, num_samples in model_training_samples_dic.items():
+        model_dic[model_name] = build_model(df= df, train_samples=num_samples)
+    # model_dic = {
+    #     "low_acc":build_model(df=df, train_samples=40 ),
+    #     "med_acc": build_model(df=df, train_samples=400),
+    #     "high_acc":build_model(df=df, train_samples=4000)
+    # }
 
 
     models_filename = output_path / "vlp_models.pkl"

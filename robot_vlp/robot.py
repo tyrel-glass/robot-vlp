@@ -57,8 +57,12 @@ class Robot:
     forward_error = self.step_err * step_size *(np.random.random()-0.5)*2  # error = +/- step_err % (of stepsize)
     encoder_step_size = step_size + forward_error
 
-    self.x = self.x + np.sin(self.heading*np.pi/180) * encoder_step_size
-    self.y = self.y + np.cos(self.heading*np.pi/180) * encoder_step_size
+    heading_error = (np.random.random() - 0.5) * 2 * 100 * self.turn_err # error = +/- turn_err *100 degrees
+
+    estimated_heading = self.heading + heading_error
+
+    self.x = self.x + np.sin(estimated_heading*np.pi/180) * encoder_step_size
+    self.y = self.y + np.cos(estimated_heading*np.pi/180) * encoder_step_size
 
     
 

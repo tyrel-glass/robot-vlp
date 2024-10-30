@@ -33,9 +33,96 @@ def main(
     # -----------------------------------------
 
 
-    plot_acc_grid()
+    # plot_acc_grid()
+    # plot_err_grid()
+    # plot_nav_points()
+    # plot_encoder_err()
+    plot_vlp_err()
+
+# ============================ PLOT TO SHOW ENCODER DRIFT====================================
+def plot_encoder_err():
+    plot_params = {
+        'start_index':0,
+        'path_length':113,
+        'filter_params':{
+            'n':'n_4',
+            'direction':'_clockwise',
+            'vlp_acc':'low_acc', 
+            'odo_acc':'err_1', 
+            'run':'run1'
+        }
+    }
+    fig, axs  = plt.subplots(ncols = 3, nrows = 1, figsize = (10,3), layout = 'constrained')
+    odo_acc = ['err_1', 'err_2', 'err_3']
+    start_index = plot_params['start_index']
+    path_length = plot_params['path_length']
+    end_index = start_index + path_length
+    X_data, y_data = load_run_data(plot_params['filter_params'])
+    x_tar = X_data[start_index:end_index,0]
+    y_tar = X_data[start_index:end_index,1]
+    heading_tar = X_data[start_index:end_index,2]
+    # axs[2].plot(heading_tar, label = 'Desired heading')
+    axs[0].plot(x_tar, y_tar, label = 'Desired path')
+    for i in range(3):
+        plot_params['filter_params']['odo_acc'] = odo_acc[i]
+        X_data, y_data = load_run_data(plot_params['filter_params'])
+        axs[0].plot(y_data[start_index:end_index,0], y_data[start_index:end_index,1], label = odo_acc[i])
+        ang_diff = heading_tar - y_data[start_index:end_index,2]
+
+        ang_diff = (ang_diff + 180) % 360 - 180
+        axs[2].plot(ang_diff, label = odo_acc[i])
+
+        loc_err = np.sqrt(np.square(x_tar - y_data[start_index:end_index,0]) + np.square(y_tar - y_data[start_index:end_index,1]))
+        axs[1].plot(loc_err, label = odo_acc[i])
+    axs[0].legend()
+    axs[1].legend()
+    axs[2].legend()
 
 
+
+    fig.savefig(FIGURES_DIR/'encoder_drift')
+
+# ======================================================================================
+
+# ============================ PLOT TO SHOW VLP DRIFT====================================
+def plot_vlp_err():
+    plot_params = {
+        'start_index':0,
+        'path_length':113,
+        'filter_params':{
+            'n':'n_4',
+            'direction':'_clockwise',
+            'vlp_acc':'low_acc', 
+            'odo_acc':'err_1', 
+            'run':'run1'
+        }
+    }
+    fig, axs  = plt.subplots(ncols = 2, nrows = 1, figsize = (10,3), layout = 'constrained')
+    vlp_acc = ['low_acc', 'med_acc', 'high_acc']
+    start_index = plot_params['start_index']
+    path_length = plot_params['path_length']
+    end_index = start_index + path_length
+    X_data, y_data = load_run_data(plot_params['filter_params'])
+    x_tar = y_data[start_index:end_index,0]
+    y_tar = y_data[start_index:end_index,1]
+    axs[0].plot(x_tar, y_tar, label = 'Desired path')
+    for i in range(3):
+        plot_params['filter_params']['vlp_acc'] = vlp_acc[i]
+        X_data, y_data = load_run_data(plot_params['filter_params'])
+        axs[0].plot(X_data[start_index:end_index,3], X_data[start_index:end_index,4], label = vlp_acc[i])
+
+
+        loc_err = np.sqrt(np.square(x_tar - X_data[start_index:end_index,3]) + np.square(y_tar - X_data[start_index:end_index,4]))
+        axs[1].plot(loc_err, label = vlp_acc[i])
+    axs[0].legend()
+    axs[1].legend()
+
+
+
+
+    fig.savefig(FIGURES_DIR/'vlp_drift')
+
+# ======================================================================================
 
 
 def load_run_data(filter_params):
@@ -82,8 +169,8 @@ def plot_nav_points():
 
 def plot_acc_grid():
     plot_params = {
-        'start_index':38,
-        'path_length':113,
+        'start_index':0,
+        'path_length':100,
         'filter_params':{
             'n':'n_4',
             'direction':'_clockwise',
@@ -92,7 +179,7 @@ def plot_acc_grid():
             'run':'run1'
         }
     }
-    fig, axs  = plt.subplots(ncols = 3, nrows = 3, figsize = (15,15), layout = 'constrained')
+    fig, axs  = plt.subplots(ncols = 3, nrows = 3, figsize = (15,15), layout = 'constrained', sharey = True, sharex = True)
     vlp_acc = ['err_1', 'err_2', 'err_3']
     odo_acc = ['low_acc', 'med_acc', 'high_acc']
     for row in range(3):
@@ -102,6 +189,7 @@ def plot_acc_grid():
             ax = axs[row, col]
             plot_path(plot_params, ax)
     fig.savefig(FIGURES_DIR/'acc_grid')
+
 
 
 
@@ -140,7 +228,9 @@ def plot_err_grid():
             plot_params['filter_params']['odo_acc'] = odo_acc[col]
             ax = axs[row, col]
             plot_position_error(plot_params, ax)
+    print('SAVING FIGUREE!!!!')
     fig.savefig(FIGURES_DIR/'err_grid')
+    print('FIGUREE SAVED!!!!')
 
 
 
@@ -150,5 +240,5 @@ def plot_err_grid():
     # y_labels = ["x_hist", "y_hist", "heading_hist"]
 
 
-    if __name__ == "__main__":
-        app()
+if __name__ == "__main__":
+    app()

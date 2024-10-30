@@ -4,16 +4,30 @@
 %====================================== Simulation using real-world dataset =========================
 \subsection{Simulation using real-world VLP dataset}
 
+%-------------------------- Robot Simulation ------------------------
+\subsubsection{Robot simulation}
 
-%-------------------------- VLP LOCALISATION ------------------------
+This section used a simulated robot that operated within a real-world VLP dataset. 
+The simulation was a simple robot that could turn on the spot, and take a step forward.
+To simulate real-world performance, errors were introduced for both turning and stepping.
+
+When turning an angle: $\theta$ an error term of $e_{turn}$ is added. Where $e_{turn}$ is a value sampled from a continuous uniform ditribution centerd at $0$ with width $2\times err_{setting}$. 
+Thus a intended turn of $\theta$ results in a turn uniformly sampled from the interval $(\theta - \theta \times err_{setting}, \theta + \theta \times err_{setting})$
+
+
+Likewise, each time the robot steps a distance $d$, an error term of $e_{step}$ step is added.
+Where $e_{step}$ is a value sampled from a continuous uniform ditribution centerd at 0 with width $2\times step_{error}$. 
+Both errors are proportional to the total movement, so that small movements will have less absoulue error.
+
+%-------------------------- VLP Dataset ------------------------
 \subsubsection{VLP dataset}
 This section utilises the authors previous work in collecting a large, real world data set of VLP readings. 
 The dataset contains a fingerprint of 7344 locations where VLP reading were taken from 11 luminaries with ground truth provided by a the HTC vive tacking system. 
 The area covered by this dataset was 6.3m x 6.9m office lobby environment.
 
 \begin{figure}[h!]
-    \includegraphics[scale = 0.1]{{figures/robot_room_setup}}
-    \caption{grid of errors}
+    \includegraphics[scale = 0.3]{{figures/robot_room_setup}}
+    \caption{VLP dataset setup}
     \label{fig:acc_grid}
     \end{figure}
 
@@ -21,36 +35,126 @@ The area covered by this dataset was 6.3m x 6.9m office lobby environment.
 The paper simulates a differential wheeled robot within the VLP fingerprint dataset. 
 The simulation keeps track of the current location of the robot, and when a VLP reading is required will find the closest datapoint available to the current co-ordinates, and use the VLP RSS vector at that point. 
 This introduces error into the VLP system, however the mean distance from a any point randomly chosen within the area to a VLP reading was 36mm, with the max being 80mm which is an order of magnitude lower than the typical performance of the VLP localisation algorithm used. 
+Several different methods exist for converting the RSS signals into location co-ordinates.
 
-%-------------------------- Encoder Localisation ------------------------
-\subsubsection{Robot simulation}
+For this work a simple MLP regressor was trained that had an input neuron for each RSS reading, and two outputs, the x and y co-ordinates of the location estimate. 
+In order to generate models with different accuracy, the amount of data used for training the model was varied. 3 different models were trained:
 
-For this work, the following error model has been implemented:
-Turning:
-Each time the robot turns and angle theta, an error term of etheta is added. Where e is a value sampled from a continuous uniform ditribution centerd at 0 with width 2 x thetaerr. 
-This equates conceptually to a plus minus theta err  error in turning
 
-Moving forward:
-Each time the robot steps a distance d, an error term of e step is added.
-Where e step is a value sampled from a continuous uniform ditribution centerd at 0 with width 2 x step err. 
-This equates conceptually to a plusminus step err error in forward movement
-Both errors are proportional to the total movement, so that small movements will have less absoulue error.
+\input{../tables/vlp_performance}
+
 
 %-------------------------- GENERATED PATHS ------------------------
-\subsubsection{Generating path data}
+\subsubsection{Generated paths}
 The inital traing dataset is created by the simulated robot tracing various paths using odometry with simulated errors to navigate. 
 The navigation targets are created by specifying a circle with radius $r$, and then specifying a number of points; $n$ where $2<=n<12$ which are then equally spaced around the circle. 
-The points are then assigned to be reached clockwise, anticlockwise, or randomly - where the list of targets is shuffled. 
-By specifying a range of values for $r$, with a range of $n$, three different ordering methods, and blank reppititions for each path,  blank different navigation paths are generated.
+The points are then assigned to be reached clockwise, anticlockwise, or randomly (where the list of targets is shuffled). 
+By specifying a range of values for $r$, with a range of $n$, three different ordering methods, and (number or reps = 4) reppititions for each path,  (number of paths = 900) different navigation paths are generated.
+
+
+\begin{tabular}{ll}
+\toprule
+Description & values \\
+\midrule
+Number of points in target path & $1-12$ \\
+Order in which points are traversed & $\{Clockwise, Anticlockwise, Shuffled\}$ \\
+Accuracy of VLP model & $\{Low, Medium, High\}$ \\
+Accuracy of encoder & $\{Low, Medium, High\}$ \\
+Number of times the same path is repeated & 4 \\
+\bottomrule
+\end{tabular}
+
+
+
+
 \begin{figure}[h!]
-\includegraphics[scale = 1]{{../figures/nav_points_ex}}
+\includegraphics[scale = 0.7]{{../figures/nav_points_ex}}
 \caption{Example of three different navigation paths}
 \label{fig:nav_points_ex}
 \end{figure}
 
+%-------------------------- Robot performance ------------------------
+\subsubsection{Robot navigation performance}
+To naivgate to each of the target points the simulated robot uses odometry alone. 
+From the robots perspective the path it traces out is error free.
+To naivigate to a point, the robot will compare its bearing to that of the target, make a heading correction and continue to step in the same direction until it thinks it hits its target. 
+The errors in the encoder lead the actual path traced by the robot to deviate from the ideal.
+The robot is set to repeat the series of target points untill the position errors accumulate to the point at which the actual co-ordiante of the robot reaches the limit of the VLP dataset.
+The level of encoder error has a major impact on navigation performance, as can be seen by figure x.
 
 
+\begin{figure}[h!]
+\includegraphics[scale = 0.5]{{../figures/encoder_drift}}
+\caption{Demonstration of encoder error}
+\label{fig:encoder_drift}
+\end{figure}
 
+The level of VLP error also has a large impact on positioning performance.
+
+\begin{figure}[h!]
+    \includegraphics[scale = 0.5]{{../figures/vlp_drift}}
+    \caption{Demonstration of VLP error (note: this data need to be recalculated)}
+    \label{fig:vlp_drift}
+    \end{figure}
+
+%-------------------------- Dataset preperation ------------------------
+\subsubsection{Dataset preperation}
+The paths traced by the simulated robot during a simulation run enable the creation of a dataset suitable for training the navigation model. 
+The targets (or labels) for the dataset are the resulting $x$ and $y$ co-ordinates, along with the heading $\alpha$ at the end of each movement step (heading correction followed by a step).
+The input data consists of the $x$, $y$ location, and heading $\alpha$ for both the encoder derived estimates; $x_e, y_e, \theta_e$, and the VLP derived estimates; $x_{vlp}, y_{vlp}, \theta_{vlp}$.
+
+
+\begin{tabular}{l|lll|llllll}
+\toprule
+Point \# & \multicolumn{3}{c}{Targets} & \multicolumn{6}{c}{Input}                                          \\ 
+\midrule
+     & \boldmath$x$     & \boldmath$y$     & \boldmath$\theta$     & \boldmath$x_e$   & \boldmath$y_e$   & \boldmath$\theta_e$   & \boldmath$x_{vlp}$   & \boldmath$y_{vlp}$   & \boldmath$\theta_{vlp}$   \\
+\midrule
+$1$       &$x^1$      & $y^1$     & $\theta^1$     & $x_e^1$   & $y_e^1$   & $\theta_e^1$   & $x_{vlp}^1$   & $y_{vlp}^1$   & $\theta_{vlp}^1$   \\
+$2$       &$x^2$      & $y^2$     & $\theta^2$     & $x_e^2$   & $y_e^2$   & $\theta_e^2$   & $x_{vlp}^2$   & $y_{vlp}^2$   & $\theta_{vlp}^2$   \\
+
+$\vdots$ & \multicolumn{3}{c}{$\vdots$} & \multicolumn{6}{c}{$\vdots$}               \\
+$n$       & $x^n$    & $y^n$   & $\theta^n$   & $x_e^n$ & $y_e^n$ & $\theta_e^n$ & $x_{vlp}^n$ & $y_{vlp}^n$ & $\theta_{vlp}^n$ \\ 
+\bottomrule
+\end{tabular}
+
+The simulation is run (Number of simulation runs) with the number of steps per run ranging from () to ().
+The total number of steps in the dataset was ()
+
+Scaling
+
+Windowing
+
+%-------------------------- Model architecture ------------------------
+\subsubsection{Model architecture}
+
+RNN 
+
+Simple MLP for comparison
+
+Hyperparameter tuning
+The hyperparameter tuning was done using the keras implementation of hyperband tuner.
+The process entails training a large number of models with varying hyperparameters for only a few epochs. 
+The best performing models (1/factor) are then trained for another round with more epochs. 
+The process is repeated until the best perfoming model is left.
+The tuning configuration is as follows:
+
+\begin{tabular}{ll}
+\toprule
+Description & values \\
+\midrule
+Number of layers & $1-4$ \\
+Neurons per layer & $1-50$ \\
+Learning rate & $1e^{-4} - 1e^{-2}$ \\
+Optimizer & $\{SGD, Adam\}$ \\
+\bottomrule
+\end{tabular}
+
+The best performing parameters were found to be ...
+The model was then retrained using early stopping to halt when the performance on the validation data decreased. 
+This was for x epochs.
+
+\subsubsection{Model performance}
 
 \subsubsection{}
 % \begin{figure}[h!]

@@ -59,7 +59,7 @@ def main():
                             
                         name = 'n_'+str(n)+'_polygon_'+vlp_name+'_'+err_name+'_'+direction+'_run'+str(run_no)
 
-                        robot = r.Robot(x=2, y=1.5, heading = 0, step_err = err_val, turn_err = err_val, df = df, vlp_mod = vlp_model)  
+                        robot = r.Robot(x=targets[0,0], y=targets[0,1], heading = 0, step_err = err_val, turn_err = err_val, df = df, vlp_mod = vlp_model)  
 
                         for i in range(3):
                             for j in range(n):

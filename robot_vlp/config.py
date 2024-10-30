@@ -18,9 +18,12 @@ EXTERNAL_DATA_DIR = DATA_DIR / "external"
 
 MODELS_DIR = PROJ_ROOT / "models"
 VLP_MODELS_DIR = MODELS_DIR / "vlp"
+TRAINING_LOGS_DIR = MODELS_DIR / "training_logs"
 
 REPORTS_DIR = PROJ_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
+TABLES_DIR = REPORTS_DIR / "tables"
+
 
 # If tqdm is installed, configure loguru with tqdm.write
 # https://github.com/Delgan/loguru/issues/135

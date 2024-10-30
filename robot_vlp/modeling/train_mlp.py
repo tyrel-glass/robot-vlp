@@ -18,14 +18,16 @@ from tqdm import tqdm
 
 from robot_vlp.config import MODELS_DIR, PROCESSED_DATA_DIR, FIGURES_DIR
 
+def ang_loss_fn(y_true, y_pred):
+    return keras.losses.cosine_similarity(y_true, y_pred) + 1
+
 def train_mlp(
 ):
     # pull in processed dataset
     with open(PROCESSED_DATA_DIR/'data.pickle', 'rb') as handle:
         data = pickle.load(handle)
 
-    def ang_loss_fn(y_true, y_pred):
-        return keras.losses.cosine_similarity(y_true, y_pred) + 1
+
     
 
     # ------------------------------------------------------------------

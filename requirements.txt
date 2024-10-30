@@ -15,4 +15,5 @@ scikit-learn
 tqdm
 typer
 tensorflow
+keras_tuner
 -e .

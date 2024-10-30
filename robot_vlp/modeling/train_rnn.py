@@ -5,6 +5,7 @@ import numpy as np
 import pickle
 import tensorflow as tf
 import keras
+import keras_tuner as kt
 from keras import ops
 import random
 
@@ -16,7 +17,10 @@ import typer
 from loguru import logger
 from tqdm import tqdm
 
-from robot_vlp.config import MODELS_DIR, PROCESSED_DATA_DIR, FIGURES_DIR
+from robot_vlp.config import MODELS_DIR, PROCESSED_DATA_DIR, FIGURES_DIR, TRAINING_LOGS_DIR
+
+def ang_loss_fn(y_true, y_pred):
+    return keras.losses.cosine_similarity(y_true, y_pred) + 1
 
 def train_rnn(
 ):
@@ -24,47 +28,49 @@ def train_rnn(
     with open(PROCESSED_DATA_DIR/'data.pickle', 'rb') as handle:
         data = pickle.load(handle)
 
-    def ang_loss_fn(y_true, y_pred):
-        return keras.losses.cosine_similarity(y_true, y_pred) + 1
-    
 
-    # ------------------------------------------------------------------
-    # input_ = keras.layers.Input(shape=(data['X_train'].shape[1], 5))
-    # flat_input = keras.layers.Flatten()(input_)
-    # hidden1 = keras.layers.Dense(10)(flat_input)
-    # hidden2 = keras.layers.Dense(20)(hidden1)
-    # hidden3 = keras.layers.Dense(20)(hidden2)
-    # out1 = keras.layers.Dense(1, name='loss1')(hidden3)
-    # out2 = keras.layers.Dense(1, name='loss2')(hidden3)
-    # out3 = keras.layers.Dense(2, name='loss3')(hidden3)
+    random_search_tuner = kt.Hyperband(
+        build_model, 
+        objective='val_loss', 
+        max_epochs = 200, 
+        overwrite = False,
+        factor = 3,
+        hyperband_iterations= 2, 
+        directory = TRAINING_LOGS_DIR, 
+        project_name = "rnn_rnd_search", 
+        seed = 42 
+    )
 
-    # model = keras.Model(inputs = [input_], outputs = [out1,out2,out3])
+    tensorboard_cb = tf.keras.callbacks.TensorBoard(TRAINING_LOGS_DIR / 'tensorboard')
+    early_stopping_cb = tf.keras.callbacks.EarlyStopping(patience=5)
 
-    # ------------------------------------------------------------------
-    # window_len = data['X_train'].shape[1]
-    input_ = keras.layers.Input(shape=(None, 5))
-    hidden1 = keras.layers.SimpleRNN(20, return_sequences=True)(input_)
-    hidden2 = keras.layers.SimpleRNN(20)(hidden1)
 
-    out1 = keras.layers.Dense(2, name='pos')(hidden2)
-    out2 = keras.layers.Dense(2, name='heading')(hidden2)
+    random_search_tuner.search(x = data['X_train'],
+                               y = [data['y_train'][:,[0,1]],  p.ang_to_vector(data['y_train'][:,2], unit = 'degrees').numpy()],
+                               epochs = 10,
+                               validation_data = (data['X_valid'], [data['y_valid'][:,[0,1]], p.ang_to_vector(data['y_valid'][:,2], unit = 'degrees').numpy()]), 
+                               callbacks = [early_stopping_cb, tensorboard_cb]
+                               )
 
-    model = keras.Model(inputs = [input_], outputs = [out1,out2])
+    best_model = random_search_tuner.get_best_models(num_models=1)[0]
 
-    # ------------------------------------------------------------------
-
-    model.compile(optimizer='adam',
-                loss = ['mse',ang_loss_fn],
-                  loss_weights = [1., 1.],
-                )
-    
-    logger.info("Training the model")
-    history = model.fit(
+    history = best_model.fit(
         x = data['X_train'], 
         y = [data['y_train'][:,[0,1]],  p.ang_to_vector(data['y_train'][:,2], unit = 'degrees').numpy()],
-        epochs = 200,
-        validation_data = (data['X_valid'], [data['y_valid'][:,[0,1]], p.ang_to_vector(data['y_valid'][:,2], unit = 'degrees').numpy()])                               
+        epochs = 20,
+        validation_data = (data['X_valid'], [data['y_valid'][:,[0,1]], p.ang_to_vector(data['y_valid'][:,2], unit = 'degrees').numpy()]), 
+        callbacks = [early_stopping_cb, tensorboard_cb]    
     )
+
+    best_model.save(MODELS_DIR / 'model_02.keras')
+
+
+    # random_search_tuner.get_best_hyperparameters()[0].values
+    # random_search_tuner.oracle.get_best_trials(num_trials = 6)[-1].summary()
+
+    
+    plt.plot(history.history['val_loss'])
+    plt.plot(history.history['loss'])
 
 
     logger.success("Modeling training complete.")
@@ -72,9 +78,43 @@ def train_rnn(
 
    
 
-    model.save(MODELS_DIR / 'model_02.keras')
+    
 
+def build_model(hp):
+    n_hidden = hp.Int('n_hidden', min_value = 1, max_value = 4, default = 2)
+    n_neurons = hp.Int('n_neurons', min_value = 1, max_value = 50)
+    learning_rate = hp.Float('learning_rate', min_value = 1e-4, max_value = 1e-2, sampling = 'log')
+    optimizer = hp.Choice('optimizer', values = ['sgd', 'adam'])
 
+    if optimizer == 'sgd':
+        optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
+    else:
+        optimizer =  tf.keras.optimizers.Adam(learning_rate=learning_rate)
+
+    input_ = keras.layers.Input(shape=(None, 5))
+
+    next_input = input_
+
+    for i in range(n_hidden - 1):
+        hidden_layer = keras.layers.SimpleRNN(n_neurons, return_sequences= True)(next_input)
+        next_input = hidden_layer
+
+    last_hidden_layer = keras.layers.SimpleRNN(n_neurons, return_sequences= False)(next_input)
+ 
+
+    # hidden1 = keras.layers.SimpleRNN(20, return_sequences=True)(input_)
+    # hidden2 = keras.layers.SimpleRNN(20)(hidden1)
+
+    out1 = keras.layers.Dense(2, name='pos')(last_hidden_layer)
+    out2 = keras.layers.Dense(2, name='heading')(last_hidden_layer)
+
+    model = keras.Model(inputs = [input_], outputs = [out1,out2])
+
+    model.compile(optimizer=optimizer,
+            loss = ['mse',ang_loss_fn],
+                loss_weights = [1., 1.],
+            )
+    return model
 
 if __name__ == "__main__":
     train_rnn()

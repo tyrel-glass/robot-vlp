@@ -54,8 +54,7 @@ When a new position estimate is required, the VLP positioning engine takes a sig
 The digital signals is then split into windows of size 1024, and then passed through an DFFT algorithm to extract the RSS components at the frequencies associated with each VLP luminare. 
 This vector of RSS readings to stationary luminars is then used to derive a position estimate. 
 VLP model
-Several different methods exist for converting the RSS signals into location co-ordinates.
-For this work a simple MLP regressor was trained that had an input neuron for each RSS reading, and two outputs, the x and y co-ordinates of the location estimate. 
+
 
 
 
