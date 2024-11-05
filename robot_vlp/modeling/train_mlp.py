@@ -53,7 +53,7 @@ def train_mlp(
     history = model.fit(
         x = data['X_train'], 
         y = [data['y_train'][:,[0,1]], p.ang_to_vector(data['y_train'][:,2], unit = 'degrees').numpy()],
-        epochs = 200,
+        epochs = 20,
         validation_data =    (data['X_valid'], [data['y_valid'][:,[0,1]], p.ang_to_vector(data['y_valid'][:,2], unit = 'degrees').numpy()])                               
     )
     logger.success("Modeling training complete.")

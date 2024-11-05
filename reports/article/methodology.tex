@@ -128,33 +128,70 @@ Windowing
 %-------------------------- Model architecture ------------------------
 \subsubsection{Model architecture}
 
-RNN 
+\noindent\textbf{Simple MLP for comparison}
 
-Simple MLP for comparison
+\noindent\textbf{RNN}
 
-Hyperparameter tuning
-The hyperparameter tuning was done using the keras implementation of hyperband tuner.
+Models were built using the tensorflow keras library. 
+The overarching model architecture was a sequence to vector RNN, with input shape (windowlen, 5).
+This meant the input of the model was an array that contained odometer and vlp estimates for the current location, back to n steps in the past. 
+The model output was the current x and y location, as well as the heading. 
+To output the co-ordinates, and output layer of 2 neurons was used with a linear activation function so the outputs were not bounded. 
+For the heading estiamte the bearing angle was deconstructed into two components. 
+The components were the $\sin$ and $\cos$ of the bearing.
+This deconstruction was done avoid the issue of the angle wrapping around causing discontinuites when the bearing fluctuated around $-180\degree$ to $180\degree$.
+It also has the benifit of allowing cosine similarity to be used as the loss function which is included in the keras library. 
+The cosine simularity computes the cosine of the angle between two vectors, which is 1 for vectors pointing in the same direction, and -1 for oposite directions. 
+when implemented by keras as a loss the sigin is inverted, so model training will converge towords similar vector directions.
+
+Constructing a multivariate model requres the use of the keras functional API. 
+It also requires combining two loss functions, one for the angle (cosine simularity) and one for the locaiton (mean squared error).
+The losses are combined using a weighted sum allowing for variation in which navigation task is prioritised.
+
+\noindent\textbf{Hyperparameter tuning}
+Even with a realitivly simple RNN architecture there are many hyperparameters needing to be selected: 
+
+\begin{tabular}{ll}
+    \toprule
+    Description & values \\
+    \midrule
+    Number of layers & $1-4$ \\
+    Neurons per layer & $1-50$ \\
+    Learning rate & $1e^{-4} - 1e^{-2}$ \\
+    Optimizer & $\{SGD, Adam\}$ \\
+    \bottomrule
+    \end{tabular}
+Hyperparameter tuning was done using the keras implementation of hyperband tuner.
 The process entails training a large number of models with varying hyperparameters for only a few epochs. 
 The best performing models (1/factor) are then trained for another round with more epochs. 
 The process is repeated until the best perfoming model is left.
 The tuning configuration is as follows:
 
-\begin{tabular}{ll}
-\toprule
-Description & values \\
-\midrule
-Number of layers & $1-4$ \\
-Neurons per layer & $1-50$ \\
-Learning rate & $1e^{-4} - 1e^{-2}$ \\
-Optimizer & $\{SGD, Adam\}$ \\
-\bottomrule
-\end{tabular}
+
 
 The best performing parameters were found to be ...
 The model was then retrained using early stopping to halt when the performance on the validation data decreased. 
 This was for x epochs.
 
 \subsubsection{Model performance}
+
+\begin{figure}[h!]
+    \includegraphics[scale = 0.5]{{../figures/pre_model_ex1}}
+    \caption{Demonstration of model prediction performance}
+    \label{fig:vlp_drift}
+    \end{figure}
+
+\begin{figure}[h!]
+    \includegraphics[scale = 0.5]{{../figures/pre_model_ex2}}
+    \caption{Demonstration of model prediction performance}
+    \label{fig:vlp_drift}
+    \end{figure}
+
+\begin{figure}[h!]
+    \includegraphics[scale = 0.5]{{../figures/pre_model_ex3}}
+    \caption{Demonstration of model prediction performance}
+    \label{fig:vlp_drift}
+    \end{figure}
 
 \subsubsection{}
 % \begin{figure}[h!]

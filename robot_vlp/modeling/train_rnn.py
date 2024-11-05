@@ -7,12 +7,14 @@ import tensorflow as tf
 import keras
 import keras_tuner as kt
 from keras import ops
+from time import strftime
 import random
 
 from sklearn.preprocessing import MinMaxScaler
 from robot_vlp.config import INTERIM_DATA_DIR, PROCESSED_DATA_DIR
 
 import robot_vlp.data.preprocessing as p
+
 import typer
 from loguru import logger
 from tqdm import tqdm
@@ -22,63 +24,14 @@ from robot_vlp.config import MODELS_DIR, PROCESSED_DATA_DIR, FIGURES_DIR, TRAINI
 def ang_loss_fn(y_true, y_pred):
     return keras.losses.cosine_similarity(y_true, y_pred) + 1
 
-def train_rnn(
+def main(
 ):
-    # pull in processed dataset
-    with open(PROCESSED_DATA_DIR/'data.pickle', 'rb') as handle:
-        data = pickle.load(handle)
+    retrain_model(model_name = 'model_02.keras')
 
 
-    random_search_tuner = kt.Hyperband(
-        build_model, 
-        objective='val_loss', 
-        max_epochs = 200, 
-        overwrite = False,
-        factor = 3,
-        hyperband_iterations= 2, 
-        directory = TRAINING_LOGS_DIR, 
-        project_name = "rnn_rnd_search", 
-        seed = 42 
-    )
+def get_run_logdir():
+    return TRAINING_LOGS_DIR /'tensorboard'/ strftime("run_%Y_%m_%d_%H_%M_%S")
 
-    tensorboard_cb = tf.keras.callbacks.TensorBoard(TRAINING_LOGS_DIR / 'tensorboard')
-    early_stopping_cb = tf.keras.callbacks.EarlyStopping(patience=5)
-
-
-    random_search_tuner.search(x = data['X_train'],
-                               y = [data['y_train'][:,[0,1]],  p.ang_to_vector(data['y_train'][:,2], unit = 'degrees').numpy()],
-                               epochs = 10,
-                               validation_data = (data['X_valid'], [data['y_valid'][:,[0,1]], p.ang_to_vector(data['y_valid'][:,2], unit = 'degrees').numpy()]), 
-                               callbacks = [early_stopping_cb, tensorboard_cb]
-                               )
-
-    best_model = random_search_tuner.get_best_models(num_models=1)[0]
-
-    history = best_model.fit(
-        x = data['X_train'], 
-        y = [data['y_train'][:,[0,1]],  p.ang_to_vector(data['y_train'][:,2], unit = 'degrees').numpy()],
-        epochs = 20,
-        validation_data = (data['X_valid'], [data['y_valid'][:,[0,1]], p.ang_to_vector(data['y_valid'][:,2], unit = 'degrees').numpy()]), 
-        callbacks = [early_stopping_cb, tensorboard_cb]    
-    )
-
-    best_model.save(MODELS_DIR / 'model_02.keras')
-
-
-    # random_search_tuner.get_best_hyperparameters()[0].values
-    # random_search_tuner.oracle.get_best_trials(num_trials = 6)[-1].summary()
-
-    
-    plt.plot(history.history['val_loss'])
-    plt.plot(history.history['loss'])
-
-
-    logger.success("Modeling training complete.")
-    # -----------------------------------------
-
-   
-
-    
 
 def build_model(hp):
     n_hidden = hp.Int('n_hidden', min_value = 1, max_value = 4, default = 2)
@@ -116,5 +69,64 @@ def build_model(hp):
             )
     return model
 
+
+def run_hyperparameter_tuner():
+
+    with open(PROCESSED_DATA_DIR/'data.pickle', 'rb') as handle:
+        data = pickle.load(handle)
+
+    random_search_tuner = kt.Hyperband(
+        build_model, 
+        objective='val_loss', 
+        max_epochs = 20, 
+        overwrite = True,
+        factor = 10,
+        hyperband_iterations= 1, 
+        directory = TRAINING_LOGS_DIR, 
+        project_name = "rnn_rnd_search", 
+        seed = 42 
+    )
+
+    tensorboard_cb = tf.keras.callbacks.TensorBoard(TRAINING_LOGS_DIR / 'tensorboard')
+    early_stopping_cb = tf.keras.callbacks.EarlyStopping(patience=5)
+
+    random_search_tuner.search(x = data['X_train'],
+                               y = [data['y_train'][:,[0,1]],  p.ang_to_vector(data['y_train'][:,2], unit = 'degrees').numpy()],
+                               epochs = 10,
+                               validation_data = (data['X_valid'], [data['y_valid'][:,[0,1]], p.ang_to_vector(data['y_valid'][:,2], unit = 'degrees').numpy()]), 
+                               callbacks = [early_stopping_cb, tensorboard_cb]
+                               )
+
+    best_model = random_search_tuner.get_best_models(num_models=1)[0]
+    best_model.save(MODELS_DIR / 'model_02.keras')
+
+
+def retrain_model(model_name = 'model_02.keras'):
+
+    with open(PROCESSED_DATA_DIR/'data.pickle', 'rb') as handle:
+        data = pickle.load(handle)
+    model = keras.models.load_model(MODELS_DIR / model_name,custom_objects={"ang_loss_fn": ang_loss_fn})
+
+
+    run_logdir = get_run_logdir()  
+
+
+    tensorboard_cb = tf.keras.callbacks.TensorBoard(run_logdir)
+    early_stopping_cb = tf.keras.callbacks.EarlyStopping(patience=10, restore_best_weights = True)
+    checkpoint_cb = tf.keras.callbacks.ModelCheckpoint('rnn_checkpoints.weights.h5',save_weights_only = True)
+
+
+    history = model.fit(
+        x = data['X_train'], 
+        y = [data['y_train'][:,[0,1]],  p.ang_to_vector(data['y_train'][:,2], unit = 'degrees').numpy()],
+        epochs = 2000,
+        batch_size = 128,
+        validation_data = (data['X_valid'], [data['y_valid'][:,[0,1]], p.ang_to_vector(data['y_valid'][:,2], unit = 'degrees').numpy()]), 
+        callbacks = [tensorboard_cb, early_stopping_cb, checkpoint_cb]    
+        )
+    
+    logger.success("Modeling training complete.")
+    
+
 if __name__ == "__main__":
-    train_rnn()
+    main()

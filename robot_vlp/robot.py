@@ -28,9 +28,9 @@ class Robot:
     self.vlp_x_hist = [self.vlp_x]
     self.vlp_y_hist = [self.vlp_y]
 
-    self.model_x_hist = [self.model_x]
-    self.model_y_hist = [self.model_y]
-    self.model_heading_hist = [0]
+    self.model_x_hist = []
+    self.model_y_hist = []
+    self.model_heading_hist = []
     self.get_vlp_position()
     self.vlp_heading_hist = [self.vlp_heading] # make random
 
@@ -63,6 +63,8 @@ class Robot:
 
     self.x = self.x + np.sin(estimated_heading*np.pi/180) * encoder_step_size
     self.y = self.y + np.cos(estimated_heading*np.pi/180) * encoder_step_size
+
+    self.heading = estimated_heading
 
     
 
@@ -124,19 +126,22 @@ class Robot:
 
     ang_to_tar = np.arctan2(x_d, y_d)*180/np.pi
     return ang_to_tar
+  
   def clip_angle(self, ang):
     while ang > 180:
         ang -= 360
     while ang < -180:
       ang += 360
     return ang
-  def correct_heading(self):
+  
 
+  def correct_heading(self):
     ang_to_tar = self.calc_heading_to_target()
+
     if self.navigation_method == 'odometer':
       ang_corr = ang_to_tar - self.encoder_heading
     elif self.navigation_method == 'vlp':
-      ang_corr = ang_to_tar - self.encoder_heading
+      ang_corr = ang_to_tar - self.vlp_heading
     elif self.navigation_method == 'model':
       ang_corr = ang_to_tar - self.model_heading
       pass # need to write in here
