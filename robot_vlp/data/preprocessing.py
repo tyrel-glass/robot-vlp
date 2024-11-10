@@ -18,8 +18,8 @@ app = typer.Typer()
 def build_train_data(
 
         dataset_save_name: Annotated[str, typer.Option()]= 'data.pickle',
-        overlap: Annotated[float, typer.Option] = 0.9,
-        window_len : Annotated[int, typer.Option] = 10,
+        overlap: Annotated[float, typer.Option] = 0.975,
+        window_len : Annotated[int, typer.Option] = 40,
         skip : Annotated[List[str], typer.Option] = [' '],
  
 ):

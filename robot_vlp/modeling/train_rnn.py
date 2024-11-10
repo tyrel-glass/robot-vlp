@@ -125,6 +125,7 @@ def retrain_model(model_name = 'model_02.keras'):
         callbacks = [tensorboard_cb, early_stopping_cb, checkpoint_cb]    
         )
     
+    model.save(MODELS_DIR / 'model_02.keras')
     logger.success("Modeling training complete.")
     
 
