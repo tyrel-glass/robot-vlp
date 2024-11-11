@@ -92,7 +92,7 @@ class Robot:
 
 
   def get_vlp_position(self):
-    self.vlp_x, self.vlp_y = get_vlp_pos_estimate(self.df, self.x, self.y, self.vlp_mod)
+    self.vlp_x, self.vlp_y = get_vlp_pos_estimate(self.df, self.x, self.y, self.vlp_mod, k = 15, weight = 'True')
 
 
   def get_vlp_heading(self):
@@ -168,15 +168,41 @@ class Robot:
 
 
 
-def get_vlp_pos_estimate(df,x,y,vlp_mod):
-    closest_index = find_closest_index(df, x, y)
+def get_vlp_pos_estimate(df,x,y,vlp_mod, k = 15, weight = 'True'):
+    
+    if k == 1:
+      closest_index = find_closest_index(df, x, y, k)
 
-    vlp_sigs = df.iloc[closest_index:closest_index + 1, :11].values
-    position_prediction = vlp_mod.predict(vlp_sigs)[0]
-    estimated_x = position_prediction[0]
-    estimated_y = position_prediction[1]
-    estimated_x, estimated_y
-    return estimated_x, estimated_y
+      vlp_sigs = df.iloc[closest_index:closest_index + 1, :11].values
+      position_prediction = vlp_mod.predict(vlp_sigs)[0]
+      estimated_x = position_prediction[0]
+      estimated_y = position_prediction[1]
+      estimated_x, estimated_y
+      return estimated_x, estimated_y
+    
+    else:
+      closest_indicies, distances = find_closest_index(df, x, y, k)
 
-def find_closest_index(df, x, y):
-    return np.argmin(np.square(df['x'] - x) + np.square(df['y'] - y))
+      if weight:
+        mean_rss_vals = np.average(df.iloc[closest_indicies,:11].values, axis=0, weights = 1/distances).reshape(1,-1)
+      else:
+        mean_rss_vals = df.iloc[closest_indicies,:11].mean(axis = 0).values.reshape(1,-1)
+      position_prediction = vlp_mod.predict(mean_rss_vals)[0]
+      estimated_x = position_prediction[0]
+      estimated_y = position_prediction[1]
+      estimated_x, estimated_y
+      return estimated_x, estimated_y
+
+
+
+
+def find_closest_index(df, x, y, k):
+    distances_to_points = np.sqrt(np.square(df['x'] - x) + np.square(df['y'] - y))
+
+    if k ==1:
+      return np.argmin(distances_to_points)
+    else:
+      closest_indicies = np.argpartition(distances_to_points, k)[:k]
+      return closest_indicies , distances_to_points[closest_indicies]
+
+
