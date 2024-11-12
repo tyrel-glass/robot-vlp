@@ -65,7 +65,7 @@ def main():
                             for j in range(n):
                                 navigate_to_target(robot,targets[j,0],targets[j,1])
 
-                        X_data = np.array([robot.encoder_x_hist, robot.encoder_y_hist, robot.encoder_heading_hist, robot.vlp_x_hist, robot.vlp_y_hist]).T
+                        X_data = np.array([robot.encoder_x_hist, robot.encoder_y_hist, robot.encoder_heading_hist, robot.vlp_x_hist, robot.vlp_y_hist, robot.vlp_heading_hist]).T
                         y_data = np.array([robot.x_hist, robot.y_hist, robot.heading_hist]).T
 
                         data_dic = {'X':X_data, 'y':y_data}
@@ -93,7 +93,7 @@ def navigate_to_target(robot,x,y,step_size = 0.1, target_threshold = 0.1):
         robot.correct_heading()
         robot.step(step_size)
 
-X_labels = ["encoder_x_hist", "encoder_y_hist", "encoder_heading_hist", "vlp_x_hist", "vlp_y_hist"]
+X_labels = ["encoder_x_hist", "encoder_y_hist", "encoder_heading_hist", "vlp_x_hist", "vlp_y_hist", "vlp_heading_hist"]
 y_labels = ["x_hist", "y_hist", "heading_hist"]
 
 def create_poly_targets(n):
@@ -104,25 +104,6 @@ def create_poly_targets(n):
     c = 3.5,3
     target_points = np.array([[r*np.cos(ang)+c[0], r*np.sin(ang)+c[1]] for ang in np.linspace(0,2*np.pi, n+1)[1:]+np.pi/4])
     return target_points
-
-def plot_path(data, name):
-    plt.figure()
-    plt.plot(data['y'][:,0], data['y'][:,1], label = 'Actual path')
-
-    plt.plot(data['X'][:,0], data['X'][:,1], label = 'Encoder path')
-
-    plt.legend()
-
-    plt.title('Training path')
-    plt.ylabel('y (m)')
-    plt.xlabel('x (m)')
-    plt.gca().set_aspect('equal', adjustable='box')
-
-    plt.xlim(1,6)
-    plt.ylim(0.5,5.5)
-
-    # plt.savefig(fig_path+name+'.png')
-
 
 
 

@@ -76,8 +76,8 @@ def build_train_data(
 
 def build_scaler():
     X_limits = np.array([
-        [0,0,-180,0,0],
-        [7,7,180,7,7]
+        [0,0,-180,0,0,-180],
+        [7,7,180,7,7,180]
     ])
     
     X_scaler = MinMaxScaler()
@@ -156,10 +156,12 @@ def create_windows(x, y, overlap = 0.5, window_len = 10):
     #     scaled_X = X_scaler.transform(data['X'])
     for i in range(len(x)):
 
+
         x_win, y_win = window_data(x[i], y[i], overlap = overlap ,window_len = window_len)
         # x_win, y_win = window_data(scaled_X, data['y'], overlap = 0.5 ,window_len = 10)
-        x_lst.append(x_win)
-        y_lst.append(y_win)
+        if len(x_win) > window_len:
+            x_lst.append(x_win)
+            y_lst.append(y_win)
 
     # X_labels = ["encoder_x_hist", "encoder_y_hist", "encoder_heading_hist", "vlp_x_hist", "vlp_y_hist"]
     # y_labels = ["x_hist", "y_hist", "heading_hist"]

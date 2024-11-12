@@ -4,14 +4,14 @@ import numpy as np
 class Robot:
   def __init__(self, x, y, heading, step_err, turn_err,df, vlp_mod, target_x= 0 , target_y = 0 , navigation_method = 'odometer', nav_model = None ):
     self.x = x
-    self.vlp_x = x
+    
     self.model_x = x
     self.y = y
-    self.vlp_y = y
+    
     self.model_y = y
     self.heading = heading
     self.vlp_heading = heading
-    self.model_heading = heading
+    # self.model_heading = heading
     self.step_err = step_err
     self.turn_err = turn_err
     self.df = df
@@ -23,16 +23,18 @@ class Robot:
 
     self.x_hist = [x]
     self.y_hist = [y]
+
     self.heading_hist = [heading]
 
+    self.get_vlp_position()
     self.vlp_x_hist = [self.vlp_x]
     self.vlp_y_hist = [self.vlp_y]
 
     self.model_x_hist = []
     self.model_y_hist = []
     self.model_heading_hist = []
-    self.get_vlp_position()
-    self.vlp_heading_hist = [self.vlp_heading] # make random
+    
+    self.vlp_heading_hist = [heading]
 
     self.encoder_heading = heading
     self.encoder_heading_hist = [heading]

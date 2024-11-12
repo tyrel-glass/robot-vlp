@@ -26,25 +26,45 @@ def ang_loss_fn(y_true, y_pred):
 
 def main(
 ):
-    retrain_model(model_name = 'model_02.keras')
+    retrain_model(model_name = 'model_03.keras')
+    # build_default_model('model_03.keras')
+
+    
+
 
 
 def get_run_logdir():
     return TRAINING_LOGS_DIR /'tensorboard'/ strftime("run_%Y_%m_%d_%H_%M_%S")
 
 
+def build_default_model(model_name):
+    class DefaultHyperParameters:
+        def Int(self, name, min_value, max_value, default):
+            return default
+        
+        def Float(self, name, min_value, max_value, default, sampling=None):
+            return default
+        
+        def Choice(self, name, values):
+            # Set default to the first option (or specify a particular default if needed)
+            return values[0]
+        
+    hp = DefaultHyperParameters()
+    model = build_model(hp)
+    model.save(MODELS_DIR / model_name)
+
 def build_model(hp):
-    n_hidden = hp.Int('n_hidden', min_value = 1, max_value = 4, default = 2)
-    n_neurons = hp.Int('n_neurons', min_value = 1, max_value = 50)
-    learning_rate = hp.Float('learning_rate', min_value = 1e-4, max_value = 1e-2, sampling = 'log')
-    optimizer = hp.Choice('optimizer', values = ['sgd', 'adam'])
+    n_hidden = hp.Int('n_hidden', min_value = 1, max_value = 4, default = 3)
+    n_neurons = hp.Int('n_neurons', min_value = 1, max_value = 50, default = 25)
+    learning_rate = hp.Float('learning_rate', min_value = 1e-4, max_value = 1e-2,default = 5e-4, sampling = 'log')
+    optimizer = hp.Choice('optimizer', values = ['adam','sgd'])
 
     if optimizer == 'sgd':
         optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
     else:
         optimizer =  tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
-    input_ = keras.layers.Input(shape=(None, 5))
+    input_ = keras.layers.Input(shape=(None, 6))
 
     next_input = input_
 
@@ -112,7 +132,7 @@ def retrain_model(model_name = 'model_02.keras'):
 
 
     tensorboard_cb = tf.keras.callbacks.TensorBoard(run_logdir)
-    early_stopping_cb = tf.keras.callbacks.EarlyStopping(patience=10, restore_best_weights = True)
+    early_stopping_cb = tf.keras.callbacks.EarlyStopping(patience=20, restore_best_weights = True)
     checkpoint_cb = tf.keras.callbacks.ModelCheckpoint('rnn_checkpoints.weights.h5',save_weights_only = True)
 
 
@@ -120,12 +140,12 @@ def retrain_model(model_name = 'model_02.keras'):
         x = data['X_train'], 
         y = [data['y_train'][:,[0,1]],  p.ang_to_vector(data['y_train'][:,2], unit = 'degrees').numpy()],
         epochs = 2000,
-        batch_size = 128,
+        batch_size = 32,
         validation_data = (data['X_valid'], [data['y_valid'][:,[0,1]], p.ang_to_vector(data['y_valid'][:,2], unit = 'degrees').numpy()]), 
         callbacks = [tensorboard_cb, early_stopping_cb, checkpoint_cb]    
         )
     
-    model.save(MODELS_DIR / 'model_02.keras')
+    model.save(MODELS_DIR / model_name)
     logger.success("Modeling training complete.")
     
 
