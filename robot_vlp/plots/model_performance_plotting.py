@@ -22,7 +22,7 @@ def main(
     # -----------------------------------------
 ):
     plot_params = {
-        'model_name':'model_02.keras',
+        'model_name':'model_03.keras',
         'name':'pre_model_ex1',
         'start_index':0,
         'path_length':50,
@@ -34,10 +34,10 @@ def main(
             'run':'run1'
         }
     }
-    plot_model_predictions(plot_params=plot_params)
+    plot_model_path_predictions(plot_params=plot_params)
 
     plot_params = {
-        'model_name':'model_02.keras',
+        'model_name':'model_03.keras',
         'name':'pre_model_ex2',
         'start_index':0,
         'path_length':113,
@@ -49,10 +49,10 @@ def main(
             'run':'run1'
         }
     }
-    plot_model_predictions(plot_params=plot_params)
+    plot_model_path_predictions(plot_params=plot_params)
 
     plot_params = {
-        'model_name':'model_02.keras',
+        'model_name':'model_03.keras',
         'name':'pre_model_ex3',
         'start_index':0,
         'path_length':213,
@@ -64,7 +64,7 @@ def main(
             'run':'run1'
         }
     }
-    plot_model_predictions(plot_params=plot_params)
+    plot_model_path_predictions(plot_params=plot_params)
 
 
 
@@ -100,7 +100,7 @@ def calc_dist_err(x1, y1, x2, y2):
 
 
 
-def plot_model_predictions(plot_params):
+def plot_model_path_predictions(plot_params):
     win_len = 10
     X_data_all_runs, y_data_all_runs = load_run_data(plot_params['filter_params'])  # pull target runs
     X_data = X_data_all_runs[0] # take first matching run
