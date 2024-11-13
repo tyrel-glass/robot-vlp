@@ -9,7 +9,7 @@ import numpy as np
 from robot_vlp.config import MODELS_DIR, PROCESSED_DATA_DIR
 
 import robot_vlp.data.preprocessing as p
-import robot_vlp.data.path_generation as pg
+import robot_vlp.data.offline_path_navigation as pg
 
 app = typer.Typer()
 

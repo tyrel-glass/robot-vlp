@@ -21,20 +21,17 @@ import pickle
 import robot_vlp.robot as r
 
 
+GENERATED_PATHS_DIR = INTERIM_DATA_DIR/'generated_paths.plk'
+
 @app.command()
 def main():
     
-    # -------------------------------------------------------------
+
     DIRECTIONS = ['clockwise', 'anticlockwise', 'shuffle']
     N_VALUES = list(range(2, 11))
     TARGET_RADII = [1, 1.5, 2, 2.5]
 
-    targets = generate_targets(n_values=N_VALUES,radii = TARGET_RADII, directions= DIRECTIONS, save_path = INTERIM_DATA_DIR/'generated_paths')
-
-
-                      
-    # ----------------------------------------
-
+    targets = generate_targets(n_values=N_VALUES,radii = TARGET_RADII, directions= DIRECTIONS, save_path =GENERATED_PATHS_DIR)
 
 
 

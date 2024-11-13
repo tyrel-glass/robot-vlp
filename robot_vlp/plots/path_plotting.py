@@ -8,7 +8,7 @@ import pickle
 import numpy as np
 import keras
 import robot_vlp.data.preprocessing as p
-import robot_vlp.data.path_generation as pg
+import robot_vlp.data.offline_path_navigation as pg
 import matplotlib.pyplot as plt
 
 from robot_vlp.config import MODELS_DIR, PROCESSED_DATA_DIR, INTERIM_DATA_DIR, FIGURES_DIR

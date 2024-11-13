@@ -194,7 +194,7 @@ def path_filter(pars, mode):
         par_list = pars
 
 
-    data_dir = INTERIM_DATA_DIR / 'path_data'
+    data_dir = INTERIM_DATA_DIR / 'odometer_path_data'
     file_list = [file_name for file_name in data_dir.iterdir() if file_name.stem[0] != "."]
     tar_list = file_list
     for par in par_list:

@@ -23,7 +23,7 @@ import robot_vlp.robot as r
 
     # Constants
 ERROR_VALUES = {'err_1': 0.01, 'err_2': 0.05, 'err_3': 0.1}
-TARGET_SAVE_PATH = INTERIM_DATA_DIR / 'targets.pkl'
+GENERATED_PATHS_DIR = INTERIM_DATA_DIR/'generated_paths.plk'
 PATH_REPEATS = 4
 
 @app.command()
@@ -38,7 +38,7 @@ def main():
     folder_path = INTERIM_DATA_DIR / 'odometer_path_data'
     folder_path.mkdir(parents = False, exist_ok = True)
 
-    with open(TARGET_SAVE_PATH, 'rb') as f:
+    with open(GENERATED_PATHS_DIR, 'rb') as f:
         generated_paths = pickle.load(f)
 
     vlp_models = read_vlp_models()
@@ -57,13 +57,14 @@ def main():
             for run_no in range(PATH_REPEATS):
                 
                 for path_name, path_coordinates in generated_paths.items():
-                            name = path_name +'_{vlp_name}_{err_name}_run{run_no}'
+                            name = path_name +f'_{vlp_name}_{err_name}_run{run_no}'
 
                             robot = r.Robot(x=path_coordinates[0,0], y=path_coordinates[0,1], heading = 0, step_err = err_val, turn_err = err_val, df = df, vlp_mod = vlp_model)  
 
 
                             for i in range(3):
-                                navigate_to_target(robot,path_coordinates[i,0],path_coordinates[i,1])
+                                for j in range(len(path_coordinates)):
+                                    navigate_to_target(robot,path_coordinates[j,0],path_coordinates[j,1])
 
                             X_data = np.array([robot.encoder_x_hist, robot.encoder_y_hist, robot.encoder_heading_hist, robot.vlp_x_hist, robot.vlp_y_hist, robot.vlp_heading_hist]).T
                             y_data = np.array([robot.x_hist, robot.y_hist, robot.heading_hist]).T
