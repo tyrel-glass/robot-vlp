@@ -21,6 +21,11 @@ import pickle
 import robot_vlp.robot as r
 
 
+    # Constants
+ERROR_VALUES = {'err_1': 0.01, 'err_2': 0.05, 'err_3': 0.1}
+TARGET_SAVE_PATH = INTERIM_DATA_DIR / 'targets.pkl'
+PATH_REPEATS = 4
+
 @app.command()
 def main():
     
@@ -30,50 +35,45 @@ def main():
     df = pd.read_csv(vlp_dataset_path, index_col=0)
     logger.success('Pulled in VLP dataset')
 
-    folder_path = INTERIM_DATA_DIR / 'path_data'
+    folder_path = INTERIM_DATA_DIR / 'odometer_path_data'
     folder_path.mkdir(parents = False, exist_ok = True)
 
-    vlp_model_dic = read_vlp_models()
+    with open(TARGET_SAVE_PATH, 'rb') as f:
+        generated_paths = pickle.load(f)
 
-    err_val_dic = {
-        'err_1':0.01,
-        'err_2':0.05,
-        'err_3':0.1
-    }
+    vlp_models = read_vlp_models()
 
-    for vlp_name, vlp_model in vlp_model_dic.items():
-    
-        for err_name, err_val in err_val_dic.items():
+    # err_val_dic = {
+    #     'err_1':0.01,
+    #     'err_2':0.05,
+    #     'err_3':0.1
+    # }
 
-            for direction in ['clockwise','anticlockwise', 'shuffle']:
-                for run_no in range(4):
 
-                    for n in range(2,11):
-                        if direction == 'clockwise':
-                            targets = create_poly_targets(n)
-                        elif direction =='anticlockwise':
-                            targets = create_poly_targets(n)[::-1]
-                        elif direction == 'shuffle':
-                            targets = create_poly_targets(n)
-                            np.random.shuffle(targets)
-                            
-                        name = 'n_'+str(n)+'_polygon_'+vlp_name+'_'+err_name+'_'+direction+'_run'+str(run_no)
+    for vlp_name, vlp_model in vlp_models.items():
 
-                        robot = r.Robot(x=targets[0,0], y=targets[0,1], heading = 0, step_err = err_val, turn_err = err_val, df = df, vlp_mod = vlp_model)  
+        for err_name, err_val in ERROR_VALUES.items():
 
-                        for i in range(3):
-                            for j in range(n):
-                                navigate_to_target(robot,targets[j,0],targets[j,1])
+            for run_no in range(PATH_REPEATS):
+                
+                for path_name, path_coordinates in generated_paths.items():
+                            name = path_name +'_{vlp_name}_{err_name}_run{run_no}'
 
-                        X_data = np.array([robot.encoder_x_hist, robot.encoder_y_hist, robot.encoder_heading_hist, robot.vlp_x_hist, robot.vlp_y_hist, robot.vlp_heading_hist]).T
-                        y_data = np.array([robot.x_hist, robot.y_hist, robot.heading_hist]).T
+                            robot = r.Robot(x=path_coordinates[0,0], y=path_coordinates[0,1], heading = 0, step_err = err_val, turn_err = err_val, df = df, vlp_mod = vlp_model)  
 
-                        data_dic = {'X':X_data, 'y':y_data}
 
-                        file_path = folder_path / name
-                        pickle.dump(data_dic, open(file_path , 'wb')) 
+                            for i in range(3):
+                                navigate_to_target(robot,path_coordinates[i,0],path_coordinates[i,1])
 
-                        # plot_path(data = data_dic, name = name)
+                            X_data = np.array([robot.encoder_x_hist, robot.encoder_y_hist, robot.encoder_heading_hist, robot.vlp_x_hist, robot.vlp_y_hist, robot.vlp_heading_hist]).T
+                            y_data = np.array([robot.x_hist, robot.y_hist, robot.heading_hist]).T
+
+                            data_dic = {'X':X_data, 'y':y_data}
+
+                            file_path = folder_path / name
+                            pickle.dump(data_dic, open(file_path , 'wb')) 
+
+                      
     # -----------------------------------------
 
 
@@ -96,11 +96,11 @@ def navigate_to_target(robot,x,y,step_size = 0.1, target_threshold = 0.1):
 X_labels = ["encoder_x_hist", "encoder_y_hist", "encoder_heading_hist", "vlp_x_hist", "vlp_y_hist", "vlp_heading_hist"]
 y_labels = ["x_hist", "y_hist", "heading_hist"]
 
-def create_poly_targets(n):
+def create_poly_targets(n, r = 2):
     """
     Creates a list of n equally spaces points that lie on the circumfrence of a circle
     """
-    r = 2
+
     c = 3.5,3
     target_points = np.array([[r*np.cos(ang)+c[0], r*np.sin(ang)+c[1]] for ang in np.linspace(0,2*np.pi, n+1)[1:]+np.pi/4])
     return target_points

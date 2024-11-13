@@ -162,10 +162,10 @@ Windowing
 
 % \noindent\textbf{Simple MLP for comparison}
 
-\noindent\textbf{RNN}
+% \noindent\textbf{RNN}
 
 Models were built using the tensorflow keras library. 
-The overarching model architecture was a sequence to vector RNN, with input shape (windowlen, 5).
+The overarching model architecture was a sequence to vector RNN, with input shape (windowlen, 6).
 This meant the input of the model was an array that contained odometer and vlp estimates for the current location and orientation, back to n steps in the past. 
 The model output was the current x and y location, as well as the heading. 
 To output the co-ordinates, and output layer of 2 neurons was used with a linear activation function so the outputs were not bounded. 
@@ -207,7 +207,7 @@ The best performing parameters were found to be ...
 The model was then retrained using early stopping to halt when the performance on the validation data decreased. 
 This was for x epochs.
 
-\subsubsection{Model performance}
+\subsubsection{Model performance - trained data}
 
 \begin{figure}[h!]
     \includegraphics[scale = 0.5]{{../figures/pre_model_ex1}}
@@ -227,7 +227,7 @@ This was for x epochs.
     \label{fig:vlp_drift}
     \end{figure}
 
-\subsubsection{}
+
 % \begin{figure}[h!]
 % \includegraphics[scale = 0.3]{{../figures/acc_grid}}
 % \caption{grid of errors}
@@ -242,3 +242,9 @@ This was for x epochs.
 % \label{fig:err_grid}
 % \end{figure}
 
+
+
+\subsubsection{Model performance - live navigation}
+Once trained on generated data from odometry navigation, the model was then used for live navigation. 
+This worked by using the models location and heading estimates to determine the corection angle needed, as well as when the target position was reached. 
+Several different paths were tested
