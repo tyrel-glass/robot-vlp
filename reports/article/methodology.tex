@@ -209,6 +209,7 @@ This was for x epochs.
 
 \subsubsection{Model performance - trained data}
 
+The following figures demonstrate the model being applied to a path traced out by odometry with various VLP and encoder errors. 
 \begin{figure}[h!]
     \includegraphics[scale = 0.5]{{../figures/pre_model_ex1}}
     \caption{Demonstration of model prediction performance}
@@ -223,6 +224,13 @@ This was for x epochs.
 
 \begin{figure}[h!]
     \includegraphics[scale = 0.5]{{../figures/pre_model_ex3}}
+    \caption{Demonstration of model prediction performance}
+    \label{fig:vlp_drift}
+    \end{figure}
+
+When tested over all points in the testign set, the following performance was acheived. 
+\begin{figure}[h!]
+    \includegraphics[scale = 0.5]{{../figures/offline_model_test.png}}
     \caption{Demonstration of model prediction performance}
     \label{fig:vlp_drift}
     \end{figure}

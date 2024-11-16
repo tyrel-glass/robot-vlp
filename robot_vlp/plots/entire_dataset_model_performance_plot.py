@@ -9,7 +9,7 @@ import pickle
 import numpy as np
 import keras
 import robot_vlp.data.preprocessing as p
-import robot_vlp.data.offline_path_navigation as pg
+import robot_vlp.data.odometer_path_navigation as pg
 import matplotlib.pyplot as plt
 from robot_vlp.modeling.train_rnn import ang_loss_fn
 

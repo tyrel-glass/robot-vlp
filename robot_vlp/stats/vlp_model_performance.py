@@ -9,7 +9,7 @@ import numpy as np
 from robot_vlp.config import EXTERNAL_DATA_DIR, TABLES_DIR
 
 import robot_vlp.data.gen_vlp_model as gvm
-import robot_vlp.data.offline_path_navigation as pg
+import robot_vlp.data.odometer_path_navigation as pg
 vlp_dataset_path = EXTERNAL_DATA_DIR / "vlp_dataset.csv"
 
 app = typer.Typer()

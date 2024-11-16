@@ -21,12 +21,14 @@ import pickle
 import robot_vlp.robot as r
 
 
-GENERATED_PATHS_DIR = INTERIM_DATA_DIR/'generated_paths.plk'
+
 
 @app.command()
-def main():
+def main(
+    path_file_name
+):
     
-
+    GENERATED_PATHS_DIR = INTERIM_DATA_DIR/path_file_name
     DIRECTIONS = ['clockwise', 'anticlockwise', 'shuffle']
     N_VALUES = list(range(2, 11))
     TARGET_RADII = [1, 1.5, 2, 2.5]
@@ -75,11 +77,6 @@ def create_poly_targets(n, radius=2, center=(3.5, 3)):
         [radius * np.cos(ang) + center[0], radius * np.sin(ang) + center[1]]
         for ang in np.linspace(0, 2 * np.pi, n + 1)[1:] + np.pi / 4
     ])
-
-
-
-
-
 
 
 if __name__ == "__main__":

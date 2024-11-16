@@ -30,9 +30,9 @@ class Robot:
     self.vlp_x_hist = [self.vlp_x]
     self.vlp_y_hist = [self.vlp_y]
 
-    self.model_x_hist = []
-    self.model_y_hist = []
-    self.model_heading_hist = []
+    self.model_x_hist = [x]
+    self.model_y_hist = [y]
+    self.model_heading_hist = [heading]
     
     self.vlp_heading_hist = [heading]
 
@@ -40,8 +40,8 @@ class Robot:
     self.encoder_heading_hist = [heading]
     self.encoder_x = x
     self.encoder_y = y
-    self.encoder_x_hist = [self.encoder_x]
-    self.encoder_y_hist = [self.encoder_y]
+    self.encoder_x_hist = [x]
+    self.encoder_y_hist = [y]
 
     self.target_x = target_x
     self.target_y = target_y

@@ -71,34 +71,46 @@ create_environment:
 ## Test the model
 
 
-## Train the model
-.PHONY: train_model
-train_model : models/model_01.keras
-models/model_01.keras: robot_vlp/modeling/train_mlp.py data/processed/data.pickle 
-	$(PYTHON_INTERPRETER) robot_vlp/modeling/train_mlp.py
+# ## Train the model
+# .PHONY: train_model
+# train_model : models/model_01.keras
+# models/model_01.keras: robot_vlp/modeling/train_mlp.py data/processed/data.pickle 
+# 	$(PYTHON_INTERPRETER) robot_vlp/modeling/train_mlp.py
 
 
-## Process the paths into a dataset
-.PHONY: data
-high_data : data/processed/data.pickle
-data/processed/data.pickle : robot_vlp/data/preprocessing.py data/interim/path_data
-	$(PYTHON_INTERPRETER) robot_vlp/data/preprocessing.py \
-	--dataset-save-name data.pickle \
-	# --window-len 30 \
-	# --overlap 0.8
+# ## Process the paths into a dataset
+# .PHONY: data
+# high_data : data/processed/data.pickle
+# data/processed/data.pickle : robot_vlp/data/preprocessing.py data/interim/path_data
+# 	$(PYTHON_INTERPRETER) robot_vlp/data/preprocessing.py \
+# 	--dataset-save-name data.pickle \
+# 	# --window-len 30 \
+# 	# --overlap 0.8
 
-#	# --skip err_2 \
-	# --skip err_3 \
-	# --skip low_acc \
-	# --skip med_acc
-#
-## Generate path datasets
-#
-# .PHONY:  run_robot_path
-# run_robot_path: data/interim/path_data
-data/interim/path_data : models/vlp/vlp_models.pkl robot_vlp/data/path_generation.py robot_vlp/robot.py
-	$(PYTHON_INTERPRETER) robot_vlp/data/path_generation.py
+# #	# --skip err_2 \
+# 	# --skip err_3 \
+# 	# --skip low_acc \
+# 	# --skip med_acc
+# #
+# ## Generate path datasets
+# #
+# # .PHONY:  run_robot_path
+# # run_robot_path: data/interim/path_data
+# data/interim/path_data : models/vlp/vlp_models.pkl robot_vlp/data/path_generation.py robot_vlp/robot.py
+# 	$(PYTHON_INTERPRETER) robot_vlp/data/path_generation.py
 
+
+## Preprocessing of inital path data
+data/processed/odometer_navigated_data.pkl:  robot_vlp/data/preprocessing.py
+	$(PYTHON_INTERPRETER) robot_vlp/data/preprocessing.py odometer_navigated_paths odometer_navigated_data.pkl --exclude-model-data
+
+## Initial odometer navigation of paths
+data/interm/odometer_navigated_paths : models/vlp/vlp_models.pkl robot_vlp/data/odometer_path_navigation.py robot_vlp/robot.py data/interm/navigation_paths.pkl
+	$(PYTHON_INTERPRETER) robot_vlp/data/odometer_path_navigation.py navigation_paths.pkl odometer_navigated_paths
+
+## Create robot paths
+data/interm/navigation_paths.pkl: robot_vlp/data/path_creation.py
+	$(PYTHON_INTERPRETER) robot_vlp/data/path_creation.py navigation_paths.pkl
 
 ## Export VLP model stats
 reports/tables/vlp_performance.tex : models/vlp/vlp_models.pkl

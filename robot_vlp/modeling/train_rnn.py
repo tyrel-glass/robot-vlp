@@ -29,35 +29,26 @@ def main(
     retrain_model(model_name = 'model_03.keras')
     # build_default_model('model_03.keras')
 
-    
+
+
 
 
 
 def get_run_logdir():
     return TRAINING_LOGS_DIR /'tensorboard'/ strftime("run_%Y_%m_%d_%H_%M_%S")
 
-
-def build_default_model(model_name):
-    class DefaultHyperParameters:
-        def Int(self, name, min_value, max_value, default):
-            return default
-        
-        def Float(self, name, min_value, max_value, default, sampling=None):
-            return default
-        
-        def Choice(self, name, values):
-            # Set default to the first option (or specify a particular default if needed)
-            return values[0]
-        
-    hp = DefaultHyperParameters()
-    model = build_model(hp)
-    model.save(MODELS_DIR / model_name)
+def build_default_model(model_name, save = False):
+    model = build_model(kt.HyperParameters())
+    if save:
+        model.save(MODELS_DIR / model_name)
+    return model
 
 def build_model(hp):
-    n_hidden = hp.Int('n_hidden', min_value = 1, max_value = 4, default = 3)
-    n_neurons = hp.Int('n_neurons', min_value = 1, max_value = 50, default = 25)
+    n_hidden = hp.Int('n_hidden', min_value = 1, max_value = 6, default = 3)
+    n_neurons = hp.Int('n_neurons', min_value = 5, max_value = 250, default = 50, step = 5)
     learning_rate = hp.Float('learning_rate', min_value = 1e-4, max_value = 1e-2,default = 5e-4, sampling = 'log')
     optimizer = hp.Choice('optimizer', values = ['adam','sgd'])
+    layer_type = hp.Choice('layer_type', values = ['simple', 'lstm', 'gru'])
 
     if optimizer == 'sgd':
         optimizer = tf.keras.optimizers.SGD(learning_rate=learning_rate)
@@ -69,15 +60,16 @@ def build_model(hp):
     next_input = input_
 
     for i in range(n_hidden - 1):
-        hidden_layer = keras.layers.SimpleRNN(n_neurons, return_sequences= True)(next_input)
+        if layer_type == 'simple':
+            hidden_layer = keras.layers.SimpleRNN(n_neurons, return_sequences= True)(next_input)
+        elif layer_type == 'lstm':
+            hidden_layer = keras.layers.LSTM(n_neurons, return_sequences= True)(next_input)
+        elif layer_type == 'gru':
+            hidden_layer = keras.layers.GRU(n_neurons, return_sequences= True)(next_input)
         next_input = hidden_layer
 
     last_hidden_layer = keras.layers.SimpleRNN(n_neurons, return_sequences= False)(next_input)
  
-
-    # hidden1 = keras.layers.SimpleRNN(20, return_sequences=True)(input_)
-    # hidden2 = keras.layers.SimpleRNN(20)(hidden1)
-
     out1 = keras.layers.Dense(2, name='pos')(last_hidden_layer)
     out2 = keras.layers.Dense(2, name='heading')(last_hidden_layer)
 
@@ -90,18 +82,29 @@ def build_model(hp):
     return model
 
 
+def build_random_search_tuner(directory, project_name, overwrite):
+    random_search_tuner = kt.RandomSearch(
+        build_model, 
+        objective='val_loss', 
+        max_trials = 1000,
+        overwrite = overwrite,
+        directory = directory, 
+        project_name = project_name, 
+        seed = 42 
+    )
+    return random_search_tuner
+        
+
 def run_hyperparameter_tuner():
 
     with open(PROCESSED_DATA_DIR/'data.pickle', 'rb') as handle:
         data = pickle.load(handle)
 
-    random_search_tuner = kt.Hyperband(
+    random_search_tuner = kt.RandomSearch(
         build_model, 
         objective='val_loss', 
-        max_epochs = 20, 
+        max_trials = 5,
         overwrite = True,
-        factor = 10,
-        hyperband_iterations= 1, 
         directory = TRAINING_LOGS_DIR, 
         project_name = "rnn_rnd_search", 
         seed = 42 
@@ -117,24 +120,20 @@ def run_hyperparameter_tuner():
                                callbacks = [early_stopping_cb, tensorboard_cb]
                                )
 
+
     best_model = random_search_tuner.get_best_models(num_models=1)[0]
     best_model.save(MODELS_DIR / 'model_02.keras')
 
+def retrain_model(model_name , dataset_name):
 
-def retrain_model(model_name = 'model_02.keras'):
-
-    with open(PROCESSED_DATA_DIR/'data.pickle', 'rb') as handle:
+    with open(PROCESSED_DATA_DIR/dataset_name, 'rb') as handle:
         data = pickle.load(handle)
     model = keras.models.load_model(MODELS_DIR / model_name,custom_objects={"ang_loss_fn": ang_loss_fn})
 
-
     run_logdir = get_run_logdir()  
-
-
     tensorboard_cb = tf.keras.callbacks.TensorBoard(run_logdir)
     early_stopping_cb = tf.keras.callbacks.EarlyStopping(patience=20, restore_best_weights = True)
     checkpoint_cb = tf.keras.callbacks.ModelCheckpoint('rnn_checkpoints.weights.h5',save_weights_only = True)
-
 
     history = model.fit(
         x = data['X_train'], 
