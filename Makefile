@@ -100,6 +100,9 @@ create_environment:
 # 	$(PYTHON_INTERPRETER) robot_vlp/data/path_generation.py
 
 
+models/odometer_trained_rnn.keras: hyperparameter_search.py
+	$(PYTHON_INTERPRETER) hyperparameter_search.py
+
 ## Preprocessing of inital path data
 data/processed/odometer_navigated_data.pkl:  robot_vlp/data/preprocessing.py
 	$(PYTHON_INTERPRETER) robot_vlp/data/preprocessing.py odometer_navigated_paths odometer_navigated_data.pkl --exclude-model-data

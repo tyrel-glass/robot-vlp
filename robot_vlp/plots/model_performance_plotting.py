@@ -11,7 +11,7 @@ import keras
 import robot_vlp.data.preprocessing as p
 import robot_vlp.data.odometer_path_navigation as pg
 import matplotlib.pyplot as plt
-from robot_vlp.modeling.train_rnn import ang_loss_fn
+from robot_vlp.modeling.rnn import ang_loss_fn
 
 
 app = typer.Typer()
