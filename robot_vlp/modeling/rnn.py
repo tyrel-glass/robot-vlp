@@ -11,7 +11,7 @@ from time import strftime
 import random
 
 from sklearn.preprocessing import MinMaxScaler
-from robot_vlp.config import INTERIM_DATA_DIR, PROCESSED_DATA_DIR
+
 
 import robot_vlp.data.preprocessing as p
 
@@ -19,19 +19,19 @@ import typer
 from loguru import logger
 from tqdm import tqdm
 
-from robot_vlp.config import MODELS_DIR, PROCESSED_DATA_DIR, FIGURES_DIR, TRAINING_LOGS_DIR
+from robot_vlp.config import MODELS_DIR, PROCESSED_DATA_DIR, FIGURES_DIR, TRAINING_LOGS_DIR, INTERIM_DATA_DIR
 
 def ang_loss_fn(y_true, y_pred):
     return tf.add(keras.losses.cosine_similarity(y_true, y_pred) , 1)
 
-# def main(
-# ):
-#     retrain_model(model_name = 'model_03.keras')
-#     # build_default_model('model_03.keras')
 
+app = typer.Typer()
+@app.command()
+def main(
+        model_name
+):
 
-
-
+    build_default_model(model_name, save = True)
 
 
 def get_run_logdir():
@@ -82,51 +82,6 @@ def build_model(hp):
     return model
 
 
-
-
-def build_random_search_tuner(directory, project_name, overwrite):
-    random_search_tuner = kt.RandomSearch(
-        build_model, 
-        objective='val_loss', 
-        max_trials = 1000,
-        overwrite = overwrite,
-        directory = directory, 
-        project_name = project_name, 
-        seed = 42 
-    )
-    return random_search_tuner
-        
-
-def run_hyperparameter_tuner():
-
-    with open(PROCESSED_DATA_DIR/'data.pickle', 'rb') as handle:
-        data = pickle.load(handle)
-
-    random_search_tuner = kt.RandomSearch(
-        build_model, 
-        objective='val_loss', 
-        max_trials = 5,
-        overwrite = True,
-        directory = TRAINING_LOGS_DIR, 
-        project_name = "rnn_rnd_search", 
-        seed = 42 
-    )
-
-    tensorboard_cb = tf.keras.callbacks.TensorBoard(TRAINING_LOGS_DIR / 'tensorboard')
-    early_stopping_cb = tf.keras.callbacks.EarlyStopping(patience=5)
-
-    random_search_tuner.search(x = data['X_train'],
-                               y = [data['y_train'][:,[0,1]],  p.ang_to_vector(data['y_train'][:,2], unit = 'degrees').numpy()],
-                               epochs = 10,
-                               validation_data = (data['X_valid'], [data['y_valid'][:,[0,1]], p.ang_to_vector(data['y_valid'][:,2], unit = 'degrees').numpy()]), 
-                               callbacks = [early_stopping_cb, tensorboard_cb], 
-                               batch_size = 512
-                               )
-
-
-    best_model = random_search_tuner.get_best_models(num_models=1)[0]
-    best_model.save(MODELS_DIR / 'model_02.keras')
-
 def retrain_model(model_name , dataset_name):
 
     with open(PROCESSED_DATA_DIR/dataset_name, 'rb') as handle:
@@ -151,5 +106,5 @@ def retrain_model(model_name , dataset_name):
     logger.success("Modeling training complete.")
     
 
-# if __name__ == "__main__":
-#     main()
+if __name__ == "__main__":
+    app()
