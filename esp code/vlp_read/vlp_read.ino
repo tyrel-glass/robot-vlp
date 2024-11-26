@@ -61,6 +61,7 @@ void loop() {
 void fetchSensorReading(WiFiClient& client) {
   Serial.print("s\r\n"); // Ensure sensor is off
   delay(20);
+  
   unsigned long startTime = millis();
   String adcData = "";
 
@@ -69,35 +70,44 @@ void fetchSensorReading(WiFiClient& client) {
     Serial.read();
   }
 
-  Serial.print("b\r\n"); // Send 'b' command to start sensor readings
-  delay(50);
-  Serial.print("b\r\n"); // Send 'b' command to start sensor readings
-
+  bool commandSent = false;
   bool foundStart = false;
   bool timedOut = false;
 
-  // Wait for "[DEBUG] ADC Data:[" with a timeout
-  while (millis() - startTime < 1000) { // Timeout after 1 second
-    if (Serial.available()) {
-      char ch = Serial.read();
-      adcData += ch;
+  // Retry mechanism for sending 'b\n' command
+  for (int attempt = 1; attempt <= 5; attempt++) {
+    Serial.print("b\r\n"); // Send 'b' command to start sensor readings
+    delay(50);
 
-      if (adcData.endsWith("[DEBUG] ADC Data:[")) {
-        adcData = ""; // Clear buffer to start collecting ADC values
-        foundStart = true;
-        break;
+    // Wait for the start marker "[DEBUG] ADC Data:["
+    startTime = millis();
+    while (millis() - startTime < 300) { // Short wait for response
+      if (Serial.available()) {
+        char ch = Serial.read();
+        adcData += ch;
+
+        if (adcData.endsWith("[DEBUG] ADC Data:[")) {
+          adcData = ""; // Clear buffer to start collecting ADC values
+          foundStart = true;
+          break;
+        }
       }
+    }
+
+    if (foundStart) {
+      commandSent = true;
+      break; // Exit retry loop if data is received
     }
   }
 
-  if (!foundStart) {
-    sendStatus(client, "ERROR: Failed to detect start of ADC data.");
+  if (!commandSent) {
+    sendStatus(client, "ERROR: Failed to send 'b' command after 5 attempts.");
     return;
   }
 
-  // Start collecting ADC values with a timeout
+  // Start collecting ADC values
   startTime = millis();
-  while (true) { // Infinite loop; breaks based on conditions
+  while (true) {
     if (Serial.available()) {
       char ch = Serial.read();
       if (ch == ']') {
@@ -128,6 +138,7 @@ void fetchSensorReading(WiFiClient& client) {
 
   sendStatus(client, "SUCCESS: ADC data fetched successfully.");
 }
+
 
 void sendChunkedData(WiFiClient& client, const String& data, size_t chunkSize) {
   size_t totalSize = data.length();
