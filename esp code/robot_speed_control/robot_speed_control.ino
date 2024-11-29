@@ -1,3 +1,48 @@
+/*
+  =======================
+  Serial Command Summary
+  =======================
+  
+  Motion Commands:
+  ----------------
+  MOVE:<encoder_counts>
+    - Moves the system forward by the specified number of encoder counts.
+    - Example: MOVE:1000 (moves forward 1000 encoder counts).
+
+  TURN:<encoder_counts>
+    - Rotates the system by the specified number of encoder counts.
+    - Positive values turn clockwise, negative values turn counterclockwise.
+    - Example: TURN:500 (rotates 500 encoder counts clockwise).
+              TURN:-500 (rotates 500 encoder counts counterclockwise).
+
+  STOP
+    - Stops the motors immediately.
+    - Example: STOP
+
+  Parameter Configuration Commands:
+  ---------------------------------
+  SET:KP:<value>
+    - Updates the proportional constant (Kp) used in feedback control.
+    - Example: SET:KP:2.5 (sets Kp to 2.5).
+
+  SET:TS:<value>
+    - Updates the target speed for the motors in encoder counts per second.
+    - Example: SET:TS:100.0 (sets target speed to 100 encoder counts per second).
+
+  Debugging Commands:
+  -------------------
+  DEBUG:ON
+    - Enables real-time debugging output.
+    - Sends the following data in a comma-separated format:
+      encoderCountA,encoderCountB,speedA,speedB,pwmA,pwmB
+    - Example Output: 100,105,12.5,11.8,120,125.
+
+  DEBUG:OFF
+    - Disables real-time debugging output.
+*/
+
+#define LED_PIN 13
+
 //=========== Encoder Pins ===========
 #define ENCA 2         // Encoder A Signal A (Motor A) - INT0
 #define ENCB 3         // Encoder A Signal B (Motor A) - INT1
@@ -16,38 +61,35 @@
 
 //=========== Global Variables ===========
 volatile int encoderCountA = 0;  // Encoder A count
-volatile int encoderCountB = 0;  // Encoder B count (Motor B)
+volatile int encoderCountB = 0;  // Encoder B count
 int lastCountA = 0;              // Previous count for A
 int lastCountB = 0;              // Previous count for B
-float speedA = 0;                // Calculated speed for A
-float speedB = 0;                // Calculated speed for B
-int pwmA = 100;                  // Initial PWM for Motor A
-int pwmB = 100;                  // Initial PWM for Motor B
-float counts_per_degree = 10.0;  // Adjust based on encoder and gear ratio
-int pwm = 100;                   // Base motor speed
-float Kp = 2.0;                  // Proportional constant for speed correction
+float speedA = 0;                // Speed for Motor A (encoder counts per second)
+float speedB = 0;                // Speed for Motor B (encoder counts per second)
+int pwmA = 50;                  // PWM for Motor A
+int pwmB = 50;                  // PWM for Motor B
+int pwm = 50;                   // Base motor speed
+float Kp = 0.1;                  // Proportional constant
+float targetSpeed = 200.0;       // Target speed in encoder counts per second
+bool debugEnabled = false;       // Debug flag
 
-//=========== Interrupt Handlers for Motor A ===========
+unsigned long lastSpeedUpdateTime = 0; // Last time speed was updated (ms)
+
+//=========== Interrupt Handlers ===========
 void encoderA_ISR() {
   bool stateA = digitalRead(ENCA);
   bool stateB = digitalRead(ENCB);
-
-  encoderCountA += (stateA == stateB) ? -1 : 1;  // Inline direction logic
+  encoderCountA += (stateA == stateB) ? -1 : 1;
 }
 
-//=========== Pin Change Interrupt Handler for Motor B ===========
 ISR(PCINT1_vect) {  // Handles PCINT[8:14] (PORTC pins)
   static bool lastStateA2 = LOW;
   static bool lastStateB2 = LOW;
-
   bool stateA2 = digitalRead(ENCA2);
   bool stateB2 = digitalRead(ENCB2);
-
-  // Determine direction of rotation
   if (stateA2 != lastStateA2) {
-    encoderCountB += (stateA2 == stateB2) ? 1 : -1;  // Reverse logic for Motor B
+    encoderCountB += (stateA2 == stateB2) ? 1 : -1;
   }
-
   lastStateA2 = stateA2;
   lastStateB2 = stateB2;
 }
@@ -55,9 +97,10 @@ ISR(PCINT1_vect) {  // Handles PCINT[8:14] (PORTC pins)
 //=========================================================================
 // SETUP
 //=========================================================================
-
 void setup() {
   Serial.begin(9600);
+  pinMode(LED_PIN, OUTPUT);
+  digitalWrite(LED_PIN, HIGH);
 
   // Motor Pins
   pinMode(PWMA, OUTPUT);
@@ -74,131 +117,269 @@ void setup() {
   pinMode(ENCA2, INPUT_PULLUP);
   pinMode(ENCB2, INPUT_PULLUP);
 
-  // Attach Hardware Interrupts for Motor A
   attachInterrupt(digitalPinToInterrupt(ENCA), encoderA_ISR, CHANGE);
-
-  // Enable Pin Change Interrupts for Motor B (PORTC)
   PCICR |= (1 << PCIE1);             // Enable pin change interrupts for PORTC
   PCMSK1 = (1 << PCINT8) | (1 << PCINT9);  // Enable PCINT for A0 (ENCA2) and A1 (ENCB2)
-
-
-  move(0,50,0);
-  move(1,50,0);
   Serial.println("SETUP COMPLETE");
+
+  // setMotorState(1, 140, 0);
+  // setMotorState(0, 140, 0);
 }
 
 //=========================================================================
 // MAIN LOOP
 //=========================================================================
-
 void loop() {
-  static unsigned long lastTime = 0;
-  unsigned long currentTime = millis();
+  processSerialInput(); // Process incoming serial commands
+  debugPrint();         // Output debug information at regular intervals
+}
 
-  // Calculate speed and adjust PWM every 100 ms
-  if (currentTime - lastTime >= 100) {
-    lastTime = currentTime;
-
-    calculateSpeed();           // Calculate encoder speeds
-    adjustPWM(60);              // Adjust PWM to maintain target speed of 20 counts/interval
+//=========================================================================
+// SERIAL COMMAND PROCESSING
+//=========================================================================
+void processSerialInput() {
+  static String commandBuffer = "";
+  while (Serial.available()) {
+    char c = Serial.read();
+    if (c == '\n') {
+      commandBuffer.trim();
+      processCommand(commandBuffer);
+      commandBuffer = "";
+    } else {
+      commandBuffer += c;
+    }
   }
+}
 
-
-  // Optional: Print speeds and counts for debugging
-  Serial.print("Speed A: ");
-  Serial.print(speedA);
-  Serial.print(" | Speed B: ");
-  Serial.print(speedB);
-  Serial.print(" | EncA_Count: ");
-  Serial.print(encoderCountA);
-  Serial.print(" | EncB_Count: ");
-  Serial.print(encoderCountB);
-  Serial.print(" | PWM A: ");
-  Serial.print(pwmA);
-  Serial.print(" | PWM B: ");
-  Serial.println(pwmB);
-
-  delay(100);
+void processCommand(String command) {
+  command.trim();
+  if (command.startsWith("MOVE:")) {
+    int targetCounts = command.substring(5).toInt();
+    Serial.print("Moving forward ");
+    Serial.print(targetCounts);
+    Serial.println(" encoder counts...");
+    move(targetCounts);
+    Serial.println("Move done");
+  } else if (command.startsWith("TURN:")) {
+    int targetCounts = command.substring(5).toInt();
+    Serial.print("Turning ");
+    Serial.print(targetCounts);
+    Serial.println(" encoder counts...");
+    rotate(targetCounts);
+    Serial.println("Turn done");
+  } else if (command.startsWith("SET:KP:")) {
+    Kp = command.substring(7).toFloat();
+    Serial.print("Updated Kp to: ");
+    Serial.println(Kp);
+  } else if (command.startsWith("SET:TS:")) {
+    targetSpeed = command.substring(7).toFloat();
+    Serial.print("Updated targetSpeed to: ");
+    Serial.println(targetSpeed);
+  } else if (command == "DEBUG:ON") {
+    debugEnabled = true;
+    Serial.println("Debugging enabled.");
+  } else if (command == "DEBUG:OFF") {
+    debugEnabled = false;
+    Serial.println("Debugging disabled.");
+  } else if (command == "STOP") {
+    stop();
+    Serial.println("Motors stopped.");
+  } else {
+    Serial.println("Unknown command.");
+  }
 }
 
 //=========================================================================
 // HELPER FUNCTIONS
 //=========================================================================
+void debugPrint() {
+  static unsigned long lastDebugTime = 0;
+  unsigned long currentTime = millis();
+  if (debugEnabled && (currentTime - lastDebugTime >= 100)) {
+
+    noInterrupts();
+    int currentCountA = encoderCountA;
+    int currentCountB = encoderCountB;
+    interrupts();
+
+    Serial.print(currentCountA);
+    Serial.print(",");
+    Serial.print(currentCountB);
+    Serial.print(",");
+    Serial.print(speedA);
+    Serial.print(",");
+    Serial.print(speedB);
+    Serial.print(",");
+    Serial.print(pwmA);
+    Serial.print(",");
+    Serial.println(pwmB);
+    lastDebugTime = currentTime;
+  }
+}
+
+
 
 void calculateSpeed() {
-  noInterrupts(); // Disable interrupts to read encoder counts safely
+  noInterrupts();
   int currentCountA = encoderCountA;
   int currentCountB = encoderCountB;
-  interrupts();   // Re-enable interrupts
+  interrupts();
 
-  // Calculate speeds (counts per interval)
-  speedA = currentCountA - lastCountA;
-  speedB = currentCountB - lastCountB;
+  unsigned long currentTime = millis();
+  unsigned long deltaTime = currentTime - lastSpeedUpdateTime;
+  lastSpeedUpdateTime = currentTime;
 
-  // Update last counts
+  if (deltaTime > 0) {
+    // Calculate absolute speed (encoder counts per second)
+    speedA = abs((float)(currentCountA - lastCountA) * 1000.0 / deltaTime);
+    speedB = abs((float)(currentCountB - lastCountB) * 1000.0 / deltaTime);
+  //   speedA = abs((float)(currentCountA - lastCountA) );
+  //   speedB = abs((float)(currentCountB - lastCountB) );
+  }
+
   lastCountA = currentCountA;
   lastCountB = currentCountB;
 }
 
-void adjustPWM(float targetSpeed) {
-  // Calculate corrections based on speed differences
-  float errorA = targetSpeed - speedA;
-  float errorB = targetSpeed - speedB;
 
-  // Adjust PWM using proportional control
-  pwmA += Kp * errorA;
-  pwmB += Kp * errorB;
 
-  // Constrain PWM values to valid range (0-255)
-  pwmA = constrain(pwmA, 0, 255);
-  pwmB = constrain(pwmB, 0, 255);
+void adjustPWM(bool isTurning = false) {
+  // Calculate encoder difference (positional error)
+  int encoderDifference = encoderCountA - encoderCountB;
 
-  // Apply adjusted PWM values to motors
+  if (isTurning) {
+    // For turning, use absolute encoder differences for control
+    encoderDifference = abs(encoderCountA) - abs(encoderCountB);
+  }
+
+  // Adjust target speeds based on positional error
+  float adjustedTargetSpeedA = targetSpeed - (Kp * 15) * encoderDifference;
+  float adjustedTargetSpeedB = targetSpeed + (Kp * 15) * encoderDifference;
+
+  // Calculate speed errors
+  float speedErrorA = adjustedTargetSpeedA - speedA;
+  float speedErrorB = adjustedTargetSpeedB - speedB;
+
+  // Update PWM values based on speed errors
+  pwmA += Kp * speedErrorA;
+  pwmB += Kp * speedErrorB;
+
+  // Constrain PWM values to a safe range
+  pwmA = constrain(pwmA, 0, 80);
+  pwmB = constrain(pwmB, 0, 80);
+
+  // Apply PWM values to the motors
   analogWrite(PWMA, pwmA);
   analogWrite(PWMB, pwmB);
 }
 
+
+
+
 //=========================================================================
 // MOVEMENT CONTROL
 //=========================================================================
+void move(int targetCounts) {
+  zeroEncoders(); // Reset encoder counts
 
-void rotate(float degrees) {
-  int targetCount = abs(degrees) * counts_per_degree;
+  // Start both motors moving forward
+  setMotorState(1, pwmA, 0);  // Motor A forward
+  setMotorState(2, pwmB, 0);  // Motor B forward
 
-  noInterrupts();
-  int startCountA = encoderCountA;
-  int startCountB = encoderCountB;
-  interrupts();
+  bool motorAStopped = false;
+  bool motorBStopped = false;
 
-  if (degrees > 0) {
-    // Rotate right
-    move(1, pwmA, 1);
-    move(2, pwmB, 0);
-    while ((encoderCountA - startCountA < targetCount) &&
-           (encoderCountB - startCountB < targetCount)) {
-      calculateSpeed();
-      adjustPWM(10); // Adjust for rotational consistency
+  while (!motorAStopped || !motorBStopped) {
+    noInterrupts();
+    int currentCountA = encoderCountA;
+    int currentCountB = encoderCountB;
+    interrupts();
+
+    // Stop Motor A if it reaches its target
+    if (!motorAStopped && (currentCountA >= targetCounts)) {
+      setMotorState(1, 0, 0); // Stop Motor A
+      motorAStopped = true;
     }
-  } else {
-    // Rotate left
-    move(1, pwmA, 0);
-    move(2, pwmB, 1);
-    while ((encoderCountA - startCountA > -targetCount) &&
-           (encoderCountB - startCountB > -targetCount)) {
+
+    // Stop Motor B if it reaches its target
+    if (!motorBStopped && (currentCountB >= targetCounts)) {
+      setMotorState(2, 0, 0); // Stop Motor B
+      motorBStopped = true;
+    }
+
+    // Update speed and PWM every 50ms
+    unsigned long currentTime = millis();
+    if (currentTime - lastSpeedUpdateTime >= 50) {
       calculateSpeed();
-      adjustPWM(10); // Adjust for rotational consistency
+      adjustPWM(); // Use updated adjustPWM() for proportional control
+      debugPrint();
     }
   }
 
-  stop();
+  stop(); // Ensure both motors are stopped
 }
 
 
-void stop() {
-  digitalWrite(STBY, LOW);  // Stop the motors
+
+
+
+void rotate(int targetCounts) {
+  zeroEncoders(); // Reset encoder counts
+
+  // Determine rotation direction based on the sign of targetCounts
+  if (targetCounts > 0) {
+    // Clockwise rotation
+    setMotorState(1, pwmA, 1);  // Motor A forward
+    setMotorState(2, pwmB, 0);  // Motor B backward
+  } else {
+    // Counterclockwise rotation
+    setMotorState(1, pwmA, 0);  // Motor A backward
+    setMotorState(2, pwmB, 1);  // Motor B forward
+  }
+
+  bool motorAStopped = false;
+  bool motorBStopped = false;
+
+  while (!motorAStopped || !motorBStopped) {
+    noInterrupts();
+    int currentCountA = encoderCountA;
+    int currentCountB = encoderCountB;
+    interrupts();
+
+    // Stop Motor A if it reaches its target
+    if (!motorAStopped && (abs(currentCountA) >= abs(targetCounts))) {
+      setMotorState(1, 0, 0); // Stop Motor A
+      motorAStopped = true;
+    }
+
+    // Stop Motor B if it reaches its target
+    if (!motorBStopped && (abs(currentCountB) >= abs(targetCounts))) {
+      setMotorState(2, 0, 0); // Stop Motor B
+      motorBStopped = true;
+    }
+
+    // Update speed and PWM every 50ms
+    unsigned long currentTime = millis();
+    if (currentTime - lastSpeedUpdateTime >= 50) {
+      calculateSpeed();
+      adjustPWM(true); // Use updated adjustPWM() with turning flag
+      debugPrint();
+    }
+  }
+
+  stop(); // Ensure both motors are stopped
 }
 
-void move(int motor, int speed, int direction) {
+
+void zeroEncoders() {
+  noInterrupts();
+  encoderCountA = 0;
+  encoderCountB = 0;
+  interrupts();
+}
+
+
+void setMotorState(int motor, int speed, int direction) {
   digitalWrite(STBY, HIGH); // Disable standby
 
   boolean inPin1 = LOW;
@@ -218,4 +399,8 @@ void move(int motor, int speed, int direction) {
     digitalWrite(BIN2, inPin2);
     analogWrite(PWMB, speed);
   }
+}
+
+void stop() {
+  digitalWrite(STBY, LOW);
 }
