@@ -2,7 +2,7 @@
 #include <ArduinoOTA.h>
 
 // Wi-Fi credentials
-const char* ssid = "Glasshouse";
+const char* ssid = "phd";
 const char* password = "Jagerhouse";
 
 // Server configuration
