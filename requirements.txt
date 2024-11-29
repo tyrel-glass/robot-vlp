@@ -16,4 +16,9 @@ tqdm
 typer
 tensorflow
 keras_tuner
+openvr
+pyseral
 -e .
+
+
+
