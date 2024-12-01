@@ -75,7 +75,7 @@ def create_poly_targets(n, radius=2, center=(3.5, 3)):
     """Creates n points on the circumference of a circle with a specified radius and center."""
     return np.array([
         [radius * np.cos(ang) + center[0], radius * np.sin(ang) + center[1]]
-        for ang in np.linspace(0, 2 * np.pi, n + 1)[1:] + np.pi / 4
+        for ang in np.linspace(0, 2 * np.pi, n + 1)[:] + np.pi / 4
     ])
 
 
