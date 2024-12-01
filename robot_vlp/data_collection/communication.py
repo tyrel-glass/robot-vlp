@@ -8,7 +8,7 @@ import pandas as pd
 import numpy as np
 import csv
 # import openvr
-
+import os
 
 
 # ---- VLP functions ----
@@ -92,13 +92,13 @@ def read_vlp(ESP32_IP="172.20.10.13", max_retries=3, timeout=3):
 
 
 # ---- LOGGING FUNCTION -----
-def log_clear(log_file = 'robot_vive_data_log.csv' ):
+def vive_robot_log_clear(log_file = 'robot_vive_data_log.csv' ):
     """Clears the log file and writes headers with a pipe delimiter."""
     with open(log_file, 'w') as f:
         f.write("vive_data|last_cmd\n")
 
 
-def log_write(vive_data, last_cmd, log_file = 'robot_vive_data_log.csv'):
+def vive_robot_log_write(vive_data, last_cmd, log_file = 'robot_vive_data_log.csv'):
     """Writes a single data point to the log file."""
     vive_data = str(vive_data).replace('\n', '')  # Remove newline characters
     last_cmd = str(last_cmd).replace('\n', '')    # Remove newline characters
@@ -138,8 +138,18 @@ def read_vive(vive, n_readings = 10 , transformer = None):
 def take_vive_cal_point(point_no, log_file, vive, raw = True):
     vive_data = read_vive(vive)
     cmd = 'CAL:'+str(point_no)
-    log_write(vive_data, cmd, log_file= log_file)
+    vive_robot_log_write(vive_data, cmd, log_file= log_file)
 
+def get_last_vive_position(log_file):
+    # Load the log file
+    df = pd.read_csv(log_file, delimiter='|', header=0, names=['vive_data', 'last_cmd'])
+    
+    # Extract the vive_data from the last row
+    last_row_vive_data = df.iloc[-1]['vive_data']
+    
+    # Parse the vive_data string into a numpy array and extract the first two values
+    vive_array = np.fromstring(last_row_vive_data.strip('[]'), sep=' ')
+    return vive_array[:2]
 
 
 # ----- ROBOT SERIAL FUNCTIONS -----
@@ -157,15 +167,11 @@ def send_robot_cmd(robot_ser, cmd):
 
 ########################  CONTROL PROCESSING ##########################
 
-def process_move(cmd, robot_ser, log_file, vive):
+def process_move(cmd, robot_ser, log_file, vive, transformer):
 
     send_robot_cmd(robot_ser = robot_ser, cmd = cmd)
-    vive_data = read_vive(vive)
-    log_write(vive_data, cmd = cmd, log_file = log_file)
-
-
-
-
+    vive_data = read_vive(vive, transformer= transformer)
+    vive_robot_log_write(vive_data, cmd = cmd, log_file = log_file)
 
 
 ######################## VIVE TRANSLANTION CODE #########################
@@ -242,3 +248,104 @@ def build_transformer(log_file):
     # Derive the transformation
     transformer.derive_transform(df)
     return transformer
+
+
+################### CNC Control code #####################
+def relative_movement(x, y, cnc_serial):
+    """Perform relative movement on X and Y axes."""
+    try:
+        # Switch to relative positioning mode
+        cnc_serial.write(b"G91\n")  # G91: Relative positioning
+        cnc_serial.readline()  # Wait for CNC response
+        
+        # Send the movement command directly
+        gcode_command = f"G1 X{x} Y{y} F1000"
+        print(f"Generated G-code: {gcode_command}")
+        cnc_serial.write(str.encode(gcode_command) + b"\n")
+        grbl_out = cnc_serial.readline().decode().strip()
+        print("GRBL Response: ", grbl_out)
+        
+        # Return to absolute positioning mode
+        cnc_serial.write(b"G90\n")  # G90: Absolute positioning
+        cnc_serial.readline()  # Wait for CNC response
+    except Exception as e:
+        print(f"Error during relative movement: {e}")
+
+def absolute_movement(x, y, cnc_serial, feedrate=1000):
+    """
+    Moves the CNC to an absolute location (X, Y) at the specified feedrate.
+
+    Args:
+        x (float): Absolute X-coordinate.
+        y (float): Absolute Y-coordinate.
+        feedrate (int): Feedrate for the movement in units per minute. Default is 1000.
+
+    Returns:
+        None
+    """
+    try:
+        # Ensure absolute positioning mode
+        cnc_serial.write(b"G90\n")  # G90: Absolute positioning mode
+        cnc_serial.readline()  # Wait for CNC response
+        
+        # Create and send the absolute movement command
+        gcode_command = f"G1 X{x} Y{y} F{feedrate}"
+        print(f"Sending command: {gcode_command}")
+        cnc_serial.write(str.encode(gcode_command) + b"\n")
+        
+        # Wait for CNC's acknowledgment
+        grbl_out = cnc_serial.readline().decode().strip()
+        print("GRBL Response: ", grbl_out)
+    except Exception as e:
+        print(f"Error during absolute movement: {e}")
+
+
+
+def init_cnc(cnc_serial):
+    # Wake up GRBL and zero CNC
+    cnc_serial.write(b"\r\n\r\n")
+    time.sleep(2)
+    cnc_serial.flushInput()
+    cnc_serial.write(str.encode("$X") + b"\n")
+    cnc_serial.readline()  # Wait for CNC response
+    cnc_serial.write(str.encode("G10 P0 L20 X0 Y0 Z0") + b"\n")
+    cnc_serial.readline()  # Zero CNC response
+
+
+def cnc_log_clear():
+    """Clears the log file and writes headers with a pipe delimiter."""
+    with open('data_log.csv', 'w') as f:
+        f.write("position_id|timestamp|vive_data|vlp_data|cnc_data\n")
+
+def cnc_log_write(reading_no, x, y, vive_data, vlp_data):
+    """Writes a single data point to the log file."""
+    with open('data_log.csv', 'a') as f:
+        f.write(f'{reading_no}|')
+        f.write(f'{time.time()}|')
+        f.write(f'"{vive_data}"|')  # Enclose in quotes to handle special characters
+        f.write(f'"{vlp_data}"|')  # Enclose in quotes to handle special characters
+        f.write(f'{x},{y}\n')
+
+
+def get_last_logged_point(log_file):
+    """Returns the last recorded position_id if log file exists, otherwise returns -1."""
+    if os.path.exists(log_file) and os.path.getsize(log_file) > 0:
+        data = pd.read_csv(log_file, sep='|')
+        if not data.empty:
+            return data['position_id'].iloc[-1]  # Get the last position_id
+    return -1
+
+def generate_scan_points(step=50, width=900, height=1000):
+    """
+    Generates a set of coordinate points to scan over a 2D area with a zigzag pattern.
+    """
+    points = []
+    for y in range(0, height + step, step):  # Increment along the height
+        if y % (2 * step) == 0:
+            # Move left to right
+            row_points = [(x, y) for x in range(0, width + step, step)]
+        else:
+            # Move right to left
+            row_points = [(x, y) for x in range(width, -step, -step)]
+        points.extend(row_points)
+    return np.array(points)
