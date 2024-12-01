@@ -3,11 +3,11 @@ import socket
 import time
 import serial
 import time
-# import robot_vlp.data.triad_openvr.triad_openvr as vr
+import robot_vlp.data.triad_openvr.triad_openvr as vr
 import pandas as pd
 import numpy as np
 import csv
-# import openvr
+import openvr
 import os
 
 
@@ -98,14 +98,14 @@ def vive_robot_log_clear(log_file = 'robot_vive_data_log.csv' ):
         f.write("vive_data|last_cmd\n")
 
 
-def vive_robot_log_write(vive_data, last_cmd, log_file = 'robot_vive_data_log.csv'):
+def vive_robot_log_write(vive_data, cmd, log_file = 'robot_vive_data_log.csv'):
     """Writes a single data point to the log file."""
     vive_data = str(vive_data).replace('\n', '')  # Remove newline characters
-    last_cmd = str(last_cmd).replace('\n', '')    # Remove newline characters
+    last_cmd = str(cmd).replace('\n', '')    # Remove newline characters
     
     with open(log_file, 'a', newline='') as f:
         writer = csv.writer(f, delimiter='|', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow([vive_data, last_cmd])
+        writer.writerow([vive_data, cmd])
 
 
 
