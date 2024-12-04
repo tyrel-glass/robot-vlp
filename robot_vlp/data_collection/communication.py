@@ -40,7 +40,7 @@ def take_mean_fft(n):
 
 
 
-def read_vlp(ESP32_IP="172.20.10.13", max_retries=3, timeout=3):
+def read_vlp(ESP32_IP="192.168.10.100", max_retries=3, timeout=3):
     ESP32_PORT = 8080
     retry_count = 0
 
@@ -312,14 +312,14 @@ def init_cnc(cnc_serial):
     cnc_serial.readline()  # Zero CNC response
 
 
-def cnc_log_clear():
+def cnc_log_clear(file_name):
     """Clears the log file and writes headers with a pipe delimiter."""
-    with open('data_log.csv', 'w') as f:
+    with open(file_name, 'w') as f:
         f.write("position_id|timestamp|vive_data|vlp_data|cnc_data\n")
 
-def cnc_log_write(reading_no, x, y, vive_data, vlp_data):
+def cnc_log_write(file_name, reading_no, x, y, vive_data, vlp_data):
     """Writes a single data point to the log file."""
-    with open('data_log.csv', 'a') as f:
+    with open(file_name, 'a') as f:
         f.write(f'{reading_no}|')
         f.write(f'{time.time()}|')
         f.write(f'"{vive_data}"|')  # Enclose in quotes to handle special characters
