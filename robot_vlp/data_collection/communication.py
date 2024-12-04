@@ -7,7 +7,7 @@ import robot_vlp.data.triad_openvr.triad_openvr as vr
 import pandas as pd
 import numpy as np
 import csv
-import openvr
+# import openvr
 import os
 
 
@@ -112,11 +112,9 @@ def vive_robot_log_write(vive_data,vlp_data, cmd, log_file = 'robot_vive_data_lo
 # ----- VIVE FUNCTIONS ------
 def vive_setup():
     # Initialize OpenVR
-    try:
-        ovr = openvr.init(openvr.VRApplication_Scene)
-    except Exception as e:
-        print(f"Failed to initialize OpenVR: {e}")
-        exit() 
+
+    # ovr = openvr.init(openvr.VRApplication_Scene)
+
 
     v = vr.triad_openvr()
     print(v.devices)
@@ -138,11 +136,11 @@ def read_vive(vive, n_readings = 10 , transformer = None):
 def take_vive_cal_point(point_no, log_file, vive, raw = True):
     vive_data = read_vive(vive)
     cmd = 'CAL:'+str(point_no)
-    vive_robot_log_write(vive_data, cmd, log_file= log_file)
+    vive_robot_log_write(vive_data =vive_data,vlp_data = None, cmd= cmd, log_file= log_file)
 
 def get_last_vive_position(log_file):
     # Load the log file
-    df = pd.read_csv(log_file, delimiter='|', header=0, names=['vive_data', 'last_cmd'])
+    df = pd.read_csv(log_file, delimiter='|', header=0, names=['vive_data','vlp_data', 'last_cmd'])
     
     # Extract the vive_data from the last row
     last_row_vive_data = df.iloc[-1]['vive_data']
@@ -190,9 +188,9 @@ class ViveToRobotTransform:
 
         # Known robot coordinates for calibration points
         robot_coords = np.array([
-            [0, 1, 0],  # CAL:1
+            [0, 0.998,  0],  # CAL:1
             [0, 0, 0],  # CAL:2
-            [1, 0, 0]   # CAL:3
+            [1.185, 0, 0]   # CAL:3
         ])
 
         # Extract Vive coordinates for calibration points
@@ -242,7 +240,7 @@ class ViveToRobotTransform:
 
 def build_transformer(log_file):
     df = pd.read_csv(log_file, delimiter='|', header=0, nrows = 3)
-    df.columns = ['vive_data', 'last_cmd']
+    df.columns = ['vive_data','vlp_data', 'last_cmd']
     transformer = ViveToRobotTransform()
 
     # Derive the transformation
