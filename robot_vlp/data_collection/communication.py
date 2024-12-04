@@ -95,17 +95,17 @@ def read_vlp(ESP32_IP="192.168.10.100", max_retries=3, timeout=3):
 def vive_robot_log_clear(log_file = 'robot_vive_data_log.csv' ):
     """Clears the log file and writes headers with a pipe delimiter."""
     with open(log_file, 'w') as f:
-        f.write("vive_data|last_cmd\n")
+        f.write("vive_data|vlp_data|last_cmd\n")
 
 
-def vive_robot_log_write(vive_data, cmd, log_file = 'robot_vive_data_log.csv'):
+def vive_robot_log_write(vive_data,vlp_data, cmd, log_file = 'robot_vive_data_log.csv'):
     """Writes a single data point to the log file."""
     vive_data = str(vive_data).replace('\n', '')  # Remove newline characters
     last_cmd = str(cmd).replace('\n', '')    # Remove newline characters
     
     with open(log_file, 'a', newline='') as f:
         writer = csv.writer(f, delimiter='|', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow([vive_data, cmd])
+        writer.writerow([vive_data,vlp_data, cmd])
 
 
 
