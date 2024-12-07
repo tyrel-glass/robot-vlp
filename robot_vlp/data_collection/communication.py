@@ -175,6 +175,9 @@ def process_move(cmd, robot_ser, log_file, vive, transformer):
 ######################## VIVE TRANSLANTION CODE #########################
 import numpy as np
 
+import numpy as np
+import pandas as pd
+
 class ViveToRobotTransform:
     def __init__(self):
         self.translation = None
@@ -182,7 +185,7 @@ class ViveToRobotTransform:
 
     def derive_transform(self, df):
         """
-        Derive the translation vector and rotation matrix using the calibration points.
+        Derive the translation vector and rotation matrix using rotations around the origin.
         """
         # Extract calibration points
         calibration_points = df[df['last_cmd'].str.startswith('CAL')].head(3)
@@ -207,27 +210,56 @@ class ViveToRobotTransform:
         # Translate Vive calibration points
         vive_coords_translated = vive_coords + self.translation
 
-        # Compute the rotation matrix to align Vive CAL:1 and CAL:3 with the robot frame
-        # Vive frame basis vectors
+        # Compute basis vectors in the Vive and Robot frames
         vive_x = vive_coords_translated[2] - vive_coords_translated[1]  # CAL:3 - CAL:2
         vive_y = vive_coords_translated[0] - vive_coords_translated[1]  # CAL:1 - CAL:2
         vive_z = np.cross(vive_x, vive_y)  # Orthogonal vector (right-hand rule)
-        vive_x = vive_x / np.linalg.norm(vive_x)
-        vive_y = vive_y / np.linalg.norm(vive_y)
-        vive_z = vive_z / np.linalg.norm(vive_z)
+        vive_x /= np.linalg.norm(vive_x)
+        vive_y /= np.linalg.norm(vive_y)
+        vive_z /= np.linalg.norm(vive_z)
 
-        # Robot frame basis vectors
         robot_x = robot_coords[2] - robot_coords[1]  # CAL:3 - CAL:2
         robot_y = robot_coords[0] - robot_coords[1]  # CAL:1 - CAL:2
         robot_z = np.cross(robot_x, robot_y)  # Orthogonal vector (right-hand rule)
-        robot_x = robot_x / np.linalg.norm(robot_x)
-        robot_y = robot_y / np.linalg.norm(robot_y)
-        robot_z = robot_z / np.linalg.norm(robot_z)
+        robot_x /= np.linalg.norm(robot_x)
+        robot_y /= np.linalg.norm(robot_y)
+        robot_z /= np.linalg.norm(robot_z)
 
-        # Construct the rotation matrix
-        vive_basis = np.stack([vive_x, vive_y, vive_z], axis=1)
-        robot_basis = np.stack([robot_x, robot_y, robot_z], axis=1)
-        self.rotation_matrix = robot_basis @ vive_basis.T
+        # Align basis vectors using rotation matrices
+        # Compute rotation around z-axis to align x-vectors
+        angle_z = np.arctan2(vive_x[1], vive_x[0]) - np.arctan2(robot_x[1], robot_x[0])
+        Rz = np.array([
+            [np.cos(angle_z), -np.sin(angle_z), 0],
+            [np.sin(angle_z),  np.cos(angle_z), 0],
+            [0,                0,               1]
+        ])
+
+        # Apply Rz to Vive basis vectors
+        vive_x_rot = Rz @ vive_x
+        vive_y_rot = Rz @ vive_y
+
+        # Compute rotation around y-axis to align z-vectors
+        angle_y = np.arctan2(vive_x_rot[2], vive_x_rot[0]) - np.arctan2(robot_x[2], robot_x[0])
+        Ry = np.array([
+            [np.cos(angle_y), 0, np.sin(angle_y)],
+            [0,               1, 0],
+            [-np.sin(angle_y), 0, np.cos(angle_y)]
+        ])
+
+        # Apply Ry to Vive basis vectors
+        vive_x_rot = Ry @ vive_x_rot
+        vive_y_rot = Ry @ vive_y_rot
+
+        # Compute rotation around x-axis to align y-vectors
+        angle_x = np.arctan2(vive_y_rot[2], vive_y_rot[1]) - np.arctan2(robot_y[2], robot_y[1])
+        Rx = np.array([
+            [1, 0,                0],
+            [0, np.cos(angle_x), -np.sin(angle_x)],
+            [0, np.sin(angle_x),  np.cos(angle_x)]
+        ])
+
+        # Combined rotation matrix
+        self.rotation_matrix = Rx @ Ry @ Rz
 
     def transform_point(self, point):
         """
@@ -242,13 +274,14 @@ class ViveToRobotTransform:
 
 
 def build_transformer(log_file):
-    df = pd.read_csv(log_file, delimiter='|', header=0, nrows = 3)
-    df.columns = ['vive_data','vlp_data', 'last_cmd']
+    df = pd.read_csv(log_file, delimiter='|', header=0, nrows=3)
+    df.columns = ['vive_data', 'vlp_data', 'last_cmd']
     transformer = ViveToRobotTransform()
 
     # Derive the transformation
     transformer.derive_transform(df)
     return transformer
+
 
 
 ################### CNC Control code #####################
