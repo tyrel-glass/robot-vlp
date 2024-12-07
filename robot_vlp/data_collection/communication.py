@@ -173,6 +173,8 @@ def process_move(cmd, robot_ser, log_file, vive, transformer):
 
 
 ######################## VIVE TRANSLANTION CODE #########################
+import numpy as np
+
 class ViveToRobotTransform:
     def __init__(self):
         self.translation = None
@@ -188,8 +190,8 @@ class ViveToRobotTransform:
 
         # Known robot coordinates for calibration points
         robot_coords = np.array([
-            [0, 0.998,  0],  # CAL:1
-            [0, 0, 0],  # CAL:2
+            [0, 0.998, 0],  # CAL:1
+            [0, 0, 0],      # CAL:2
             [1.185, 0, 0]   # CAL:3
         ])
 
@@ -237,6 +239,7 @@ class ViveToRobotTransform:
         point = np.array(point[:3])
         transformed_point = (point + self.translation) @ self.rotation_matrix.T
         return transformed_point
+
 
 def build_transformer(log_file):
     df = pd.read_csv(log_file, delimiter='|', header=0, nrows = 3)
