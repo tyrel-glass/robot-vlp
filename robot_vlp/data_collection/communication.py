@@ -178,6 +178,69 @@ import numpy as np
 import numpy as np
 import pandas as pd
 
+# class ViveToRobotTransform:
+#     def derive_transform(self, df):
+#         """
+#         Derive the translation vector and rotation matrix using rotations around the origin.
+#         """
+#         # Extract calibration points
+#         calibration_points = df[df['last_cmd'].str.startswith('CAL')].head(3)
+#         assert len(calibration_points) == 3, "Insufficient calibration points for alignment."
+
+#         # Known robot coordinates for calibration points
+#         robot_coords = np.array([
+#             [0, 0.998, 0],  # CAL:1 (height = z)
+#             [0, 0, 0],      # CAL:2
+#             [1.185, 0, 0]   # CAL:3 (width = x)
+#         ])
+
+#         # Extract Vive coordinates for calibration points
+#         vive_positions = calibration_points['vive_data'].apply(
+#             lambda v: np.fromstring(v.strip('[]'), sep=' ')[:3]
+#         )
+#         vive_coords = np.stack(vive_positions.to_list())  # Extract x, y, z coordinates
+
+#         # Compute the translation to align Vive CAL:2 with Robot CAL:2
+#         self.translation = robot_coords[1] - vive_coords[1]
+
+#         # Translate Vive calibration points
+#         vive_coords_translated = vive_coords + self.translation
+
+#         # Compute Vive frame basis vectors
+#         vive_x = vive_coords_translated[2] - vive_coords_translated[1]  # CAL:3 - CAL:2
+#         vive_y = vive_coords_translated[0] - vive_coords_translated[1]  # CAL:1 - CAL:2
+#         vive_z = np.cross(vive_x, vive_y)  # Orthogonal vector (right-hand rule)
+#         vive_x /= np.linalg.norm(vive_x)
+#         vive_y /= np.linalg.norm(vive_y)
+#         vive_z /= np.linalg.norm(vive_z)
+
+#         # Compute Robot frame basis vectors
+#         robot_x = robot_coords[2] - robot_coords[1]  # CAL:3 - CAL:2
+#         robot_y = robot_coords[0] - robot_coords[1]  # CAL:1 - CAL:2
+#         robot_z = np.cross(robot_x, robot_y)  # Orthogonal vector (right-hand rule)
+#         robot_x /= np.linalg.norm(robot_x)
+#         robot_y /= np.linalg.norm(robot_y)
+#         robot_z /= np.linalg.norm(robot_z)
+
+#         # Construct the rotation matrix
+#         vive_basis = np.stack([vive_x, vive_y, vive_z], axis=1)
+#         robot_basis = np.stack([robot_x, robot_y, robot_z], axis=1)
+#         self.rotation_matrix = robot_basis @ vive_basis.T
+
+#     def transform_point(self, point):
+#         """
+#         Transform a single point using the derived translation and rotation matrix.
+#         """
+#         if self.translation is None or self.rotation_matrix is None:
+#             raise ValueError("Transformation not yet derived. Call `derive_transform` first.")
+
+#         point = np.array(point[:3])
+#         transformed_point = (point + self.translation) @ self.rotation_matrix.T
+#         return transformed_point
+
+import numpy as np
+import pandas as pd
+
 class ViveToRobotTransform:
     def __init__(self):
         self.translation = None
@@ -271,6 +334,17 @@ class ViveToRobotTransform:
         point = np.array(point[:3])
         transformed_point = (point + self.translation) @ self.rotation_matrix.T
         return transformed_point
+
+
+def build_transformer(log_file):
+    df = pd.read_csv(log_file, delimiter='|', header=0, nrows=3)
+    df.columns = ['vive_data', 'vlp_data', 'last_cmd']
+    transformer = ViveToRobotTransform()
+
+    # Derive the transformation
+    transformer.derive_transform(df)
+    return transformer
+
 
 
 def build_transformer(log_file):
