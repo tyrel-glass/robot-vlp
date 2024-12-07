@@ -6,7 +6,7 @@
 
 
 // Replace these with your network credentials
-const char* ssid = "Glasshouse";        // Your WiFi network SSID
+const char* ssid = "phd";        // Your WiFi network SSID
 const char* password = "Jagerhouse"; // Your WiFi network password
 
 // #define LED_PIN 2 // Define the LED pin (use GPIO 2 for the onboard LED)
