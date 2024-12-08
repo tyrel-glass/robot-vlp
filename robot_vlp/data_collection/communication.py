@@ -147,7 +147,7 @@ def get_last_vive_position(log_file):
     
     # Parse the vive_data string into a numpy array and extract the first two values
     vive_array = np.fromstring(last_row_vive_data.strip('[]'), sep=' ')
-    return vive_array[:2]
+    return vive_array[:3]
 
 
 # ----- ROBOT SERIAL FUNCTIONS -----
@@ -256,7 +256,7 @@ class ViveToRobotTransform:
 
         # Known robot coordinates for calibration points
         robot_coords = np.array([
-            [0, 0.998, 0],  # CAL:1
+            [0,0, 0.998],  # CAL:1
             [0, 0, 0],      # CAL:2
             [1.185, 0, 0]   # CAL:3
         ])
