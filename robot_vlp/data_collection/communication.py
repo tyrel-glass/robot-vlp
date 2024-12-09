@@ -154,10 +154,16 @@ def get_last_vive_position(log_file):
     
     # Extract the vive_data from the last row
     last_row_vive_data = df.iloc[-1]['vive_data']
+
+    mean_readings = np.array(eval(last_row_vive_data.replace('array', 'np.array'))).mean(axis = 0)
+
+    # calibration_points['vive_data'] = calibration_points['vive_data'].apply( lambda v: np.array(eval(v.replace('array','np.array'))))
+    # calibration_points['vive_data'] = calibration_points['vive_data'].apply(lambda v: v.mean(axis = 0)[:3])
+
     
     # Parse the vive_data string into a numpy array and extract the first two values
-    vive_array = np.fromstring(last_row_vive_data.strip('[]'), sep=' ')
-    return vive_array[:3]
+    # vive_array = np.fromstring(last_row_vive_data.strip('[]'), sep=' ')
+    return mean_readings[:3]
 
 
 # ----- ROBOT SERIAL FUNCTIONS -----
@@ -284,10 +290,16 @@ class ViveToRobotTransform:
             [1.185, 0, 0]   # CAL:3
         ])
 
-        # Extract Vive coordinates for calibration points
-        vive_positions = calibration_points['vive_data'].apply(
-            lambda v: np.fromstring(v.strip('[]'), sep=' ')[:3]
-        )
+        # # Extract Vive coordinates for calibration points
+        # vive_positions = calibration_points['vive_data'].apply(
+        #     lambda v: np.fromstring(v.strip('[]'), sep=' ')[:3]
+        # )
+
+        calibration_points['vive_data'] = calibration_points['vive_data'].apply( lambda v: np.array(eval(v.replace('array','np.array'))))
+        calibration_points['vive_data'] = calibration_points['vive_data'].apply(lambda v: v.mean(axis = 0)[:3])
+
+        vive_positions = calibration_points['vive_data']
+
         vive_coords = np.stack(vive_positions.to_list())  # Extract x, y, z coordinates
         vive_data = vive_coords.T
         vive_data = np.concatenate((vive_data, np.ones((1,max(vive_data.shape)))),axis = 0)
