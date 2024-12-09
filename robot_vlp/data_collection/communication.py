@@ -3,11 +3,11 @@ import socket
 import time
 import serial
 import time
-# import robot_vlp.data.triad_openvr.triad_openvr as vr
+import robot_vlp.data.triad_openvr.triad_openvr as vr
 import pandas as pd
 import numpy as np
 import csv
-# import openvr
+import openvr
 import os
 
 
@@ -132,16 +132,15 @@ def vive_setup():
     return v
 
 
-def read_vive(vive, n_readings = 10 , transformer = None):
+def read_vive(vive, n_readings = 10 ):
     readings = []
     for _ in range(n_readings):
         readings.append(np.array(vive.devices["tracker_1"].get_pose_euler()))
         time.sleep(0.1)
-    mean_readings = np.mean(readings, axis = 0)
-    if transformer is None:
-        return mean_readings
-    else:
-        return np.concatenate([transformer.transform_point(mean_readings[:3]), mean_readings[3:]])
+    # mean_readings = np.mean(readings, axis = 0)
+
+
+    return readings
     
 
 def take_vive_cal_point(point_no, log_file, vive, raw = True):
