@@ -38,6 +38,17 @@ def take_mean_fft(n):
 
     return np.mean(ffts, axis = 0), fre
 
+def read_n_vlp(n):
+    adcs = []
+    print('taking vlp readings: ',end = ' ')
+    for i in range(n):
+        print(i, end = ' ')
+        adc = read_vlp()
+        adcs.append(adc)
+        time.sleep(0.1) #give esp a rest
+    return adcs
+    
+
 
 
 def read_vlp(ESP32_IP="192.168.10.100", max_retries=3, timeout=3):
