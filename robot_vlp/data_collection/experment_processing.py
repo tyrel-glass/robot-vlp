@@ -7,19 +7,16 @@ def calculate_distance_2d(df):
     """
     Calculates the 2D distance traveled between consecutive points.
     """
-    # Compute differences in x, y, and z between consecutive rows
-    df['delta_x'] = df['x'].diff()
-    df['delta_y'] = df['y'].diff()
-    
-    # Compute the Euclidean distance in 3D
-    df['distance_traveled'] = np.sqrt(df['delta_x']**2 + df['delta_y']**2 )
-    
-    # Replace NaN for the first row with 0, since there's no previous point to calculate distance
-    df['distance_traveled'].fillna(0, inplace=True)
-    
-    # Drop intermediate columns if not needed
-    df.drop(columns=['delta_x', 'delta_y'], inplace=True)
-    
+    x = df['x'].diff().values
+    y = df['y'].diff().values
+    y[0]= 0
+    x[0] = 0
+
+    x = x.astype(np.float64)
+    y = y.astype(np.float64)
+
+    df['distance_traveled'] = np.sqrt(x**2 + y**2)
+
     return df
 
 
