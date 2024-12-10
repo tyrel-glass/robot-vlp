@@ -260,6 +260,7 @@ import pandas as pd
 def build_transformer(log_file):
     df = pd.read_csv(log_file, delimiter='|', header=0, nrows=3)
     df.columns = ['vive_data', 'vlp_data', 'last_cmd']
+    
     transformer = ViveToRobotTransform()
 
     # Derive the transformation
