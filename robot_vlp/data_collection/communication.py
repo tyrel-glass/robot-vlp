@@ -189,87 +189,6 @@ def process_move(cmd, robot_ser, log_file, vive, transformer):
 
 
 ######################## VIVE TRANSLANTION CODE #########################
-import numpy as np
-
-import numpy as np
-import pandas as pd
-
-# class ViveToRobotTransform:
-#     def derive_transform(self, df):
-#         """
-#         Derive the translation vector and rotation matrix using rotations around the origin.
-#         """
-#         # Extract calibration points
-#         calibration_points = df[df['last_cmd'].str.startswith('CAL')].head(3)
-#         assert len(calibration_points) == 3, "Insufficient calibration points for alignment."
-
-#         # Known robot coordinates for calibration points
-#         robot_coords = np.array([
-#             [0, 0.998, 0],  # CAL:1 (height = z)
-#             [0, 0, 0],      # CAL:2
-#             [1.185, 0, 0]   # CAL:3 (width = x)
-#         ])
-
-#         # Extract Vive coordinates for calibration points
-#         vive_positions = calibration_points['vive_data'].apply(
-#             lambda v: np.fromstring(v.strip('[]'), sep=' ')[:3]
-#         )
-#         vive_coords = np.stack(vive_positions.to_list())  # Extract x, y, z coordinates
-
-#         # Compute the translation to align Vive CAL:2 with Robot CAL:2
-#         self.translation = robot_coords[1] - vive_coords[1]
-
-#         # Translate Vive calibration points
-#         vive_coords_translated = vive_coords + self.translation
-
-#         # Compute Vive frame basis vectors
-#         vive_x = vive_coords_translated[2] - vive_coords_translated[1]  # CAL:3 - CAL:2
-#         vive_y = vive_coords_translated[0] - vive_coords_translated[1]  # CAL:1 - CAL:2
-#         vive_z = np.cross(vive_x, vive_y)  # Orthogonal vector (right-hand rule)
-#         vive_x /= np.linalg.norm(vive_x)
-#         vive_y /= np.linalg.norm(vive_y)
-#         vive_z /= np.linalg.norm(vive_z)
-
-#         # Compute Robot frame basis vectors
-#         robot_x = robot_coords[2] - robot_coords[1]  # CAL:3 - CAL:2
-#         robot_y = robot_coords[0] - robot_coords[1]  # CAL:1 - CAL:2
-#         robot_z = np.cross(robot_x, robot_y)  # Orthogonal vector (right-hand rule)
-#         robot_x /= np.linalg.norm(robot_x)
-#         robot_y /= np.linalg.norm(robot_y)
-#         robot_z /= np.linalg.norm(robot_z)
-
-#         # Construct the rotation matrix
-#         vive_basis = np.stack([vive_x, vive_y, vive_z], axis=1)
-#         robot_basis = np.stack([robot_x, robot_y, robot_z], axis=1)
-#         self.rotation_matrix = robot_basis @ vive_basis.T
-
-#     def transform_point(self, point):
-#         """
-#         Transform a single point using the derived translation and rotation matrix.
-#         """
-#         if self.translation is None or self.rotation_matrix is None:
-#             raise ValueError("Transformation not yet derived. Call `derive_transform` first.")
-
-#         point = np.array(point[:3])
-#         transformed_point = (point + self.translation) @ self.rotation_matrix.T
-#         return transformed_point
-
-import numpy as np
-import pandas as pd
-
-def build_transformer(log_file):
-    df = pd.read_csv(log_file, delimiter='|', header=0, nrows=3)
-    df.columns = ['vive_data', 'vlp_data', 'last_cmd']
-    
-    transformer = ViveToRobotTransform()
-
-    # Derive the transformation
-    transformer.derive_transform(df)
-    return transformer
-
-
-
-
 
 class ViveToRobotTransform:
     def __init__(self):
@@ -291,13 +210,9 @@ class ViveToRobotTransform:
             [1.185, 0, 0]   # CAL:3
         ])
 
-        # # Extract Vive coordinates for calibration points
-        # vive_positions = calibration_points['vive_data'].apply(
-        #     lambda v: np.fromstring(v.strip('[]'), sep=' ')[:3]
-        # )
 
-        calibration_points['vive_data'] = calibration_points['vive_data'].apply( lambda v: np.array(eval(v.replace('array','np.array'))))
-        calibration_points['vive_data'] = calibration_points['vive_data'].apply(lambda v: v.mean(axis = 0)[:3])
+
+        calibration_points['vive_data'] = calibration_points['vive_data'].apply(lambda v: v[:3])
 
         vive_positions = calibration_points['vive_data']
 
@@ -516,3 +431,35 @@ def generate_scan_points(step=50, width=900, height=1000):
             row_points = [(x, y) for x in range(width, -step, -step)]
         points.extend(row_points)
     return np.array(points)
+
+def average_of_closest_to_median(data, num_points=5):
+    """
+    Calculate the average of the closest `num_points` to the median in an array.
+
+    Parameters:
+        data (list or array-like): The input array of numbers.
+        num_points (int): The number of points closest to the median to consider.
+
+    Returns:
+        float: The average of the closest `num_points` to the median.
+    """
+    if len(data) < num_points:
+        raise ValueError("The number of points to average must be less than or equal to the size of the array.")
+
+    # Step 1: Calculate the median
+    median = np.median(data)
+
+    # Step 2: Calculate absolute differences from the median
+    differences = [(x, abs(x - median)) for x in data]
+
+    # Step 3: Sort the array by the differences
+    sorted_by_difference = sorted(differences, key=lambda x: x[1])
+
+    # Step 4: Select the `num_points` closest to the median
+    closest_points = [x[0] for x in sorted_by_difference[:num_points]]
+
+    # Step 5: Calculate the average of the selected points
+    return np.mean(closest_points)
+
+def average_vive_readings(data):
+    return average_of_closest_to_median(data, num_points= 5)
