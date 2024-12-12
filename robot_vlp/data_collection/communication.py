@@ -3,11 +3,11 @@ import socket
 import time
 import serial
 import time
-import robot_vlp.data.triad_openvr.triad_openvr as vr
+# import robot_vlp.data.triad_openvr.triad_openvr as vr
 import pandas as pd
 import numpy as np
 import csv
-import openvr
+# import openvr
 import os
 
 
@@ -463,3 +463,18 @@ def average_of_closest_to_median(data, num_points=5):
 
 def average_vive_readings(data):
     return average_of_closest_to_median(data, num_points= 5)
+
+
+def parse_vive(df):
+        def check_for_none_array(v):
+                if len(v[0].reshape(-1)) == 1:
+                        return np.nan
+                else:
+                        return v
+        df['vive_data'] = df['vive_data'].apply( lambda v: np.array(eval(v.replace('array','np.array'))))
+        df['vive_data'] = df['vive_data'].apply(check_for_none_array) #also pull out only x, y, z
+
+        row_filt = df['vive_data'].notna()
+        df.loc[row_filt, 'vive_data'] = df['vive_data'][row_filt].apply(lambda v: np.apply_along_axis(average_vive_readings, 0,v))
+
+        return df
