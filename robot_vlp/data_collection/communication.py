@@ -3,12 +3,13 @@ import socket
 import time
 import serial
 import time
-# import robot_vlp.data.triad_openvr.triad_openvr as vr
+import robot_vlp.data.triad_openvr.triad_openvr as vr
 import pandas as pd
 import numpy as np
 import csv
-# import openvr
+import openvr
 import os
+from scipy.spatial.transform import Rotation as R
 
 
 # ---- VLP functions ----
@@ -330,6 +331,32 @@ class ViveToRobotTransform:
         ])
         
         return rot_mat.dot(mat)
+    
+
+
+    def transform_orientation(self, yaw_pitch_roll):
+        """
+        Transform a yaw, pitch, roll orientation from tracker frame to room frame.
+
+        Parameters:
+        yaw_pitch_roll (list of float): [yaw, pitch, roll] in the tracker reference frame.
+
+        Returns:
+        list of float: [yaw, pitch, roll] in the room reference frame.
+        """
+        if self.transformation_matrix is None:
+            raise ValueError("Transformation not yet derived. Call `derive_transform` first.")
+
+        # Convert yaw, pitch, roll to rotation matrix
+        raw_rotation = R.from_euler('zyx', yaw_pitch_roll, degrees=True).as_matrix()
+
+        # Apply the positional transformation to the rotation matrix
+        transformed_rotation = self.transformation_matrix[:3, :3] @ raw_rotation
+
+        # Convert back to yaw, pitch, roll
+        transformed_euler = R.from_matrix(transformed_rotation).as_euler('zyx', degrees=True)
+
+        return transformed_euler.tolist()
 
 
 ################### CNC Control code #####################
