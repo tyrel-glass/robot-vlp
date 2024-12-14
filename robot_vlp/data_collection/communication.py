@@ -568,7 +568,7 @@ def average_of_closest_to_median(data, num_points=5):
 
 
 def process_cnc(df):
-    df[['cnc_x', 'cnc_y']] = df['cnc_data'].str.split(',', expand=True).astype(float)
+    df[['cnc_y', 'cnc_x']] = df['cnc_data'].str.split(',', expand=True).astype(float)
     return df
 
 
