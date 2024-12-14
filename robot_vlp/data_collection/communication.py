@@ -11,7 +11,22 @@ import csv
 import os
 
 
-# ---- VLP functions ----
+
+#====================================================================
+#                   ----- VLP FUNCTIONS ------
+#====================================================================
+
+def average_vlp_readings(data):
+    return average_of_closest_to_median(data, num_points= 5)
+
+def process_vlp(df):
+    df['vlp_data'] = df['vlp_data'].apply(lambda v: np.array([re for re in eval(v) if re is not None]))
+
+    df['pks'] = df['vlp_data'].apply(lambda v: [np.array(calc_pks(FFT_win(data)[0]))for data in v])
+
+    df[['peak_1000Hz', 'peak_3000Hz', 'peak_5000Hz', 'peak_7000Hz']] = np.array(df['pks'].apply(lambda v: np.apply_along_axis(average_vlp_readings, 0,np.array(v))).to_list())
+    
+    return df
 
 def FFT_win(clip):
     signal = np.array(clip)
@@ -26,6 +41,7 @@ def FFT_win(clip):
     fre = np.linspace(0,25200,int(len(fft)))
 
     return fft, fre
+
 
 def take_mean_fft(n):
     ffts = []
@@ -48,10 +64,32 @@ def read_n_vlp(n):
         time.sleep(0.1) #give esp a rest
     return adcs
     
+def calc_pks(fft, width = 8):
+    light_frequencys  = {
+    'l1':15000,
+    'l2':17000,
+    'l3':20000,
+    'l4':23000,
+    }
+    fft = np.array(fft)
+
+    fre = np.linspace(0,25000,int(len(fft)))
+    intensitys = []
+
+    for light in light_frequencys.keys():
+        cen_fre = light_frequencys[light]
+        cen_ind = len(fre[fre<cen_fre])
+        lower = cen_ind - width
+        upper = cen_ind + width
+        index = fft[lower:upper].argmax() + lower
+        value = fft[index]
+        intensitys.append(value)
+    return intensitys
 
 
-
-def read_vlp(ESP32_IP="192.168.10.100", max_retries=3, timeout=3):
+def read_vlp(max_retries=3, timeout=3):
+    ESP32_IP="192.168.10.100"  #old board
+    ESP32_IP="192.168.10.104"  #new board
     ESP32_PORT = 8080
     retry_count = 0
 
@@ -102,35 +140,38 @@ def read_vlp(ESP32_IP="192.168.10.100", max_retries=3, timeout=3):
     return None  # Return None if all retries fail
 
 
-# ---- LOGGING FUNCTION -----
-def vive_robot_log_clear(log_file = 'robot_vive_data_log.csv' ):
-    """Clears the log file and writes headers with a pipe delimiter."""
-    with open(log_file, 'w') as f:
-        f.write("vive_data|vlp_data|last_cmd\n")
 
-
-def vive_robot_log_write(vive_data,vlp_data, cmd, log_file = 'robot_vive_data_log.csv'):
-    """Writes a single data point to the log file."""
-    vive_data = str(vive_data).replace('\n', '')  # Remove newline characters
-    last_cmd = str(cmd).replace('\n', '')    # Remove newline characters
+def uart_vlp_read():
+    com_port = '/dev/tty.usbserial-210'
+    vlp_port = serial.Serial(com_port, 460800, timeout= 20)
+    vlp_port.write(b'b\n')
+    adc_data = []  # List to store parsed ADC values
+    start_received = False  # Flag to check if START marker is processed
+    while True:
+        line = vlp_port.readline().decode().strip()  # Receive and decode a chunk
+        # Process the buffer
+        if "ADC Data:[" in line:
+            vlp_port.write(b's\n')
+            break  # Exit the loop once the end marker is processed
     
-    with open(log_file, 'a', newline='') as f:
-        writer = csv.writer(f, delimiter='|', quotechar='"', quoting=csv.QUOTE_MINIMAL)
-        writer.writerow([vive_data,vlp_data, cmd])
+    line = line.split('ADC Data:[',1)[1]
+    line = line.split(']')[0]
+    adc_data = [int(val) for val in line.split(',') if val.strip().isdigit()]
+    vlp_port.close()
+    return adc_data
 
 
 
-# ----- VIVE FUNCTIONS ------
+
+#====================================================================
+#                   ----- VIVE FUNCTIONS ------
+#====================================================================
 def vive_setup():
     # Initialize OpenVR
-
     # ovr = openvr.init(openvr.VRApplication_Scene)
-
-
     v = vr.triad_openvr()
     print(v.devices)
     return v
-
 
 def read_vive(vive, n_readings = 10 ):
     readings = []
@@ -138,8 +179,6 @@ def read_vive(vive, n_readings = 10 ):
         readings.append(np.array(vive.devices["tracker_1"].get_pose_euler()))
         time.sleep(0.1)
     # mean_readings = np.mean(readings, axis = 0)
-
-
     return readings
     
 
@@ -151,41 +190,30 @@ def take_vive_cal_point(point_no, log_file, vive, raw = True):
 def get_last_vive_position(log_file):
     # Load the log file
     df = pd.read_csv(log_file, delimiter='|', header=0, names=['vive_data','vlp_data', 'last_cmd'])
-    
     # Extract the vive_data from the last row
     last_row_vive_data = df.iloc[-1]['vive_data']
-
     mean_readings = np.array(eval(last_row_vive_data.replace('array', 'np.array'))).mean(axis = 0)
-
-    # calibration_points['vive_data'] = calibration_points['vive_data'].apply( lambda v: np.array(eval(v.replace('array','np.array'))))
-    # calibration_points['vive_data'] = calibration_points['vive_data'].apply(lambda v: v.mean(axis = 0)[:3])
-
-    
-    # Parse the vive_data string into a numpy array and extract the first two values
-    # vive_array = np.fromstring(last_row_vive_data.strip('[]'), sep=' ')
     return mean_readings[:3]
 
+def average_vive_readings(data):
+    try:
+        return average_of_closest_to_median(data, num_points= 5)
+    except:
+        return np.nan
 
-# ----- ROBOT SERIAL FUNCTIONS -----
-def open_robot_port(com_port = 'COM10'):
-    robot_port = serial.Serial(com_port, 9600, timeout= 20)
-    print(robot_port.readline())
-    return robot_port
+def parse_vive(df):
+        def check_for_none_array(v):
+                if len(v[0].reshape(-1)) == 1:
+                        return np.nan
+                else:
+                        return v
+        df['vive_data'] = df['vive_data'].apply( lambda v: np.array(eval(v.replace('array','np.array'))))
+        df['vive_data'] = df['vive_data'].apply(check_for_none_array) #also pull out only x, y, z
 
-def send_robot_cmd(robot_ser, cmd):
-    robot_ser.write((cmd + '\n').encode())
-    print(robot_ser.readline())
-    print(robot_ser.readline())
+        row_filt = df['vive_data'].notna()
+        df.loc[row_filt, 'vive_data'] = df['vive_data'][row_filt].apply(lambda v: np.apply_along_axis(average_vive_readings, 0,v))
 
-
-
-########################  CONTROL PROCESSING ##########################
-
-def process_move(cmd, robot_ser, log_file, vive, transformer):
-
-    send_robot_cmd(robot_ser = robot_ser, cmd = cmd)
-    vive_data = read_vive(vive, transformer= transformer)
-    vive_robot_log_write(vive_data, cmd = cmd, log_file = log_file)
+        return df
 
 
 ######################## VIVE TRANSLANTION CODE #########################
@@ -332,7 +360,13 @@ class ViveToRobotTransform:
         return rot_mat.dot(mat)
 
 
-################### CNC Control code #####################
+
+
+
+#====================================================================
+#                   ----- CNC FUNCTIONS ------
+#====================================================================
+
 def relative_movement(x, y, cnc_serial):
     """Perform relative movement on X and Y axes."""
     try:
@@ -382,7 +416,6 @@ def absolute_movement(x, y, cnc_serial, feedrate=1000):
         print(f"Error during absolute movement: {e}")
 
 
-
 def init_cnc(cnc_serial):
     # Wake up GRBL and zero CNC
     cnc_serial.write(b"\r\n\r\n")
@@ -394,6 +427,12 @@ def init_cnc(cnc_serial):
     cnc_serial.readline()  # Zero CNC response
 
 
+#====================================================================
+#                   ----- LOGGING FUNCTIONS ------
+#====================================================================
+
+
+# ----     CNC    -----
 def cnc_log_clear(file_name):
     """Clears the log file and writes headers with a pipe delimiter."""
     with open(file_name, 'w') as f:
@@ -408,7 +447,6 @@ def cnc_log_write(file_name, reading_no, x, y, vive_data, vlp_data):
         f.write(f'"{vlp_data}"|')  # Enclose in quotes to handle special characters
         f.write(f'{x},{y}\n')
 
-
 def get_last_logged_point(log_file):
     """Returns the last recorded position_id if log file exists, otherwise returns -1."""
     if os.path.exists(log_file) and os.path.getsize(log_file) > 0:
@@ -416,6 +454,27 @@ def get_last_logged_point(log_file):
         if not data.empty:
             return data['position_id'].iloc[-1]  # Get the last position_id
     return -1
+
+
+# ----     ROBOT    -----
+def vive_robot_log_clear(log_file = 'robot_vive_data_log.csv' ):
+    """Clears the log file and writes headers with a pipe delimiter."""
+    with open(log_file, 'w') as f:
+        f.write("vive_data|vlp_data|last_cmd\n")
+
+
+def vive_robot_log_write(vive_data,vlp_data, cmd, log_file = 'robot_vive_data_log.csv'):
+    """Writes a single data point to the log file."""
+    vive_data = str(vive_data).replace('\n', '')  # Remove newline characters
+    last_cmd = str(cmd).replace('\n', '')    # Remove newline characters
+    
+    with open(log_file, 'a', newline='') as f:
+        writer = csv.writer(f, delimiter='|', quotechar='"', quoting=csv.QUOTE_MINIMAL)
+        writer.writerow([vive_data,vlp_data, cmd])
+
+#====================================================================
+#                   ----- NAVIGATION FUNCTIONS ------
+#====================================================================
 
 def generate_scan_points(step=50, width=900, height=1000):
     """
@@ -431,6 +490,16 @@ def generate_scan_points(step=50, width=900, height=1000):
             row_points = [(x, y) for x in range(width, -step, -step)]
         points.extend(row_points)
     return np.array(points)
+
+
+
+
+
+#====================================================================
+#                   ----- HELPER FUNCTIONS ------
+#====================================================================
+
+
 
 def average_of_closest_to_median(data, num_points=5):
     """
@@ -461,20 +530,44 @@ def average_of_closest_to_median(data, num_points=5):
     # Step 5: Calculate the average of the selected points
     return np.mean(closest_points)
 
-def average_vive_readings(data):
-    return average_of_closest_to_median(data, num_points= 5)
 
 
-def parse_vive(df):
-        def check_for_none_array(v):
-                if len(v[0].reshape(-1)) == 1:
-                        return np.nan
-                else:
-                        return v
-        df['vive_data'] = df['vive_data'].apply( lambda v: np.array(eval(v.replace('array','np.array'))))
-        df['vive_data'] = df['vive_data'].apply(check_for_none_array) #also pull out only x, y, z
+def process_cnc(df):
+    df[['cnc_x', 'cnc_y']] = df['cnc_data'].str.split(',', expand=True).astype(float)
+    return df
 
-        row_filt = df['vive_data'].notna()
-        df.loc[row_filt, 'vive_data'] = df['vive_data'][row_filt].apply(lambda v: np.apply_along_axis(average_vive_readings, 0,v))
 
-        return df
+def is_float(value):
+    try:
+        float(value)
+        return True
+    except ValueError:
+        return False
+    
+
+def check_for_none_array(v):
+    if len(v[0].reshape(-1)) == 1:
+        return None
+    else:
+        return v
+    
+    # ----- ROBOT SERIAL FUNCTIONS -----
+def open_robot_port(com_port = 'COM10'):
+    robot_port = serial.Serial(com_port, 9600, timeout= 20)
+    print(robot_port.readline())
+    return robot_port
+
+def send_robot_cmd(robot_ser, cmd):
+    robot_ser.write((cmd + '\n').encode())
+    print(robot_ser.readline())
+    print(robot_ser.readline())
+
+
+
+########################  CONTROL PROCESSING ##########################
+
+def process_move(cmd, robot_ser, log_file, vive, transformer):
+
+    send_robot_cmd(robot_ser = robot_ser, cmd = cmd)
+    vive_data = read_vive(vive, transformer= transformer)
+    vive_robot_log_write(vive_data, cmd = cmd, log_file = log_file)
