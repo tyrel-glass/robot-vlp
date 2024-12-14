@@ -3,11 +3,11 @@ import socket
 import time
 import serial
 import time
-# import robot_vlp.data.triad_openvr.triad_openvr as vr
+import robot_vlp.data.triad_openvr.triad_openvr as vr
 import pandas as pd
 import numpy as np
 import csv
-# import openvr
+import openvr
 import os
 from scipy.spatial.transform import Rotation as R
 
@@ -90,7 +90,7 @@ def calc_pks(fft, width = 8):
 
 def read_vlp(max_retries=3, timeout=3):
     ESP32_IP="192.168.10.100"  #old board
-    ESP32_IP="192.168.10.104"  #new board
+    # ESP32_IP="192.168.10.104"  #new board
     ESP32_PORT = 8080
     retry_count = 0
 
