@@ -3,11 +3,11 @@ import socket
 import time
 import serial
 import time
-import robot_vlp.data.triad_openvr.triad_openvr as vr
+# import robot_vlp.data.triad_openvr.triad_openvr as vr
 import pandas as pd
 import numpy as np
 import csv
-import openvr
+# import openvr
 import os
 from scipy.spatial.transform import Rotation as R
 
@@ -216,6 +216,20 @@ def parse_vive(df):
 
         return df
 
+def transform_vive_df(df):
+    transformer = ViveToRobotTransform()
+    transformer.derive_transform(df)
+
+    na_filter = df['vive_data'].notna()
+    vive_data = np.array(df[na_filter]['vive_data'].to_list())
+
+    new_vive = np.apply_along_axis(transformer.transform_point, 1, vive_data[:,:3])
+    new_pose = np.apply_along_axis(transformer.transform_orientation, 1, vive_data[:,3:])
+
+    df.loc[na_filter, ['vive_x', 'vive_y', 'vive_z']] = new_vive
+    df.loc[na_filter, ['vive_yaw', 'vive_pitch', 'vive_roll']] = new_pose
+    return df
+
 
 ######################## VIVE TRANSLANTION CODE #########################
 
@@ -361,29 +375,23 @@ class ViveToRobotTransform:
         return rot_mat.dot(mat)
     
 
+    # from scipy.spatial.transform import Rotation as R
 
     def transform_orientation(self, yaw_pitch_roll):
-        """
-        Transform a yaw, pitch, roll orientation from tracker frame to room frame.
-
-        Parameters:
-        yaw_pitch_roll (list of float): [yaw, pitch, roll] in the tracker reference frame.
-
-        Returns:
-        list of float: [yaw, pitch, roll] in the room reference frame.
-        """
         if self.transformation_matrix is None:
             raise ValueError("Transformation not yet derived. Call `derive_transform` first.")
 
-        # Convert yaw, pitch, roll to rotation matrix
-        raw_rotation = R.from_euler('zyx', yaw_pitch_roll, degrees=True).as_matrix()
+        # Convert yaw, pitch, roll to a quaternion
+        raw_quaternion = R.from_euler('xzy', yaw_pitch_roll, degrees=True).as_quat()
 
-        # Apply the positional transformation to the rotation matrix
-        transformed_rotation = self.transformation_matrix[:3, :3] @ raw_rotation
+        # Convert transformation matrix to 3x3 rotation matrix
+        rotation_matrix = self.transformation_matrix[:3, :3]
 
-        # Convert back to yaw, pitch, roll
-        transformed_euler = R.from_matrix(transformed_rotation).as_euler('zyx', degrees=True)
+        # Apply transformation matrix to the raw quaternion (convert it back to matrix first)
+        transformed_rotation_matrix = rotation_matrix @ R.from_quat(raw_quaternion).as_matrix()
 
+        # Convert transformed rotation back to Euler angles
+        transformed_euler = R.from_matrix(transformed_rotation_matrix).as_euler('xzy', degrees=True)
         return transformed_euler.tolist()
 
 
@@ -598,3 +606,31 @@ def process_move(cmd, robot_ser, log_file, vive, transformer):
     send_robot_cmd(robot_ser = robot_ser, cmd = cmd)
     vive_data = read_vive(vive, transformer= transformer)
     vive_robot_log_write(vive_data, cmd = cmd, log_file = log_file)
+
+
+
+def normalize_angle(angle):
+    """
+    Normalizes an angle to the range [-180, 180] degrees.
+
+    :param angle: Angle in degrees (float or int).
+    :return: Normalized angle in degrees.
+    """
+
+    def compute(a):
+        # Bring the angle within the range [0, 360]
+        # Adjust to [-180, 180] range
+        a = a % 360
+        if a > 180:
+            a -= 360
+        return a
+
+    a_type = type(angle)
+    if (a_type == np.ndarray) or (a_type == list):
+        new_lst = []
+        for i in range(len(angle)):
+            new_lst.append(compute(angle[i]))
+        return new_lst
+    else:
+        return compute(angle)
+

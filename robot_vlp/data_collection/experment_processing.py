@@ -1,14 +1,21 @@
 import numpy as np
 import pandas as pd
-from scipy.spatial.transform import Rotation as R
+
+import matplotlib.pyplot as plt
+
+
+
+
+
+
 
 # Calculate absolute 2D distance traveled
 def calculate_distance_2d(df):
     """
     Calculates the 2D distance traveled between consecutive points.
     """
-    x = df['x'].diff().values
-    y = df['y'].diff().values
+    x = df['vive_x'].diff().values
+    y = df['vive_y'].diff().values
     y[0]= 0
     x[0] = 0
 
@@ -99,45 +106,35 @@ def assess_turn_errs(df):
 
 # ------------------------------------------------ Functions to process VLP data -------------------------------------
 
-def is_float(value):
-    try:
-        float(value)
-        return True
-    except ValueError:
-        return False
-    
-
-def parse_vlp(data):
-    if type(data) != str:
-        return data
-    else:
-        fft = [float(val) for val in data.replace('\r\n','').split(' ') if is_float(val)]
-        fft, fre = eval(data.replace('\n', '').replace('array', 'np.array')[1:-1])
-        return fft
 
 
-# --------Return only a list of the peaks------------
-def calc_pks(fft, width = 5):
-    if type(fft) != np.ndarray:
-        return [None, None, None, None]
+def plot_surface(df):
 
-    light_frequencys  = {
-    'l1':1000,
-    'l2':3000,
-    'l3':5000,
-    'l4':7000,
-    }
-    fft = np.array(fft)
+    # Creating 4 subplots for each target peak column
+    fig = plt.figure(figsize=(16, 12))
 
-    fre = np.linspace(0,25000,int(len(fft)))
-    intensitys = []
+    target_peaks = ['peak_1000Hz', 'peak_3000Hz', 'peak_5000Hz', 'peak_7000Hz']
 
-    for light in light_frequencys.keys():
-        cen_fre = light_frequencys[light]
-        cen_ind = len(fre[fre<cen_fre])
-        lower = cen_ind - width
-        upper = cen_ind + width
-        index = fft[lower:upper].argmax() + lower
-        value = fft[index]
-        intensitys.append(value)
-    return intensitys
+    # Example additional data (add to match the structure of your actual dataframe)
+
+
+    # Iterate through each target peak column to create a subplot
+    for i, peak in enumerate(target_peaks):
+        ax = fig.add_subplot(2, 2, i + 1, projection='3d')  # 2x2 grid of subplots
+
+        # Prepare the grid for surface plotting
+        X, Y = np.meshgrid(df["cnc_x"].unique(), df["cnc_y"].unique())
+        Z = df.pivot_table(index='cnc_y', columns='cnc_x', values=peak).values
+
+        # Plot the surface
+        ax.plot_surface(X, Y, Z, cmap='viridis')
+
+        # Label the axes
+        ax.set_title(f'{peak}')
+        ax.set_xlabel('X Location')
+        ax.set_ylabel('Y Location')
+        ax.set_zlabel(peak)
+
+    # Adjust layout and show the plot
+    plt.tight_layout()
+    plt.show()
