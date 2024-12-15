@@ -3,11 +3,11 @@ import socket
 import time
 import serial
 import time
-import robot_vlp.data.triad_openvr.triad_openvr as vr
+# import robot_vlp.data.triad_openvr.triad_openvr as vr
 import pandas as pd
 import numpy as np
 import csv
-import openvr
+# import openvr
 import os
 from scipy.spatial.transform import Rotation as R
 
@@ -226,7 +226,7 @@ def transform_vive_df(df):
     new_vive = np.apply_along_axis(transformer.transform_point, 1, vive_data[:,:3])
     new_pose = np.apply_along_axis(transformer.transform_orientation, 1, vive_data[:,3:])
 
-    df.loc[na_filter, ['vive_x', 'vive_y', 'vive_z']] = new_vive
+    df.loc[na_filter, ['vive_x', 'vive_z', 'vive_y']] = new_vive
     df.loc[na_filter, ['vive_yaw', 'vive_pitch', 'vive_roll']] = new_pose
     return df
 
@@ -382,7 +382,10 @@ class ViveToRobotTransform:
             raise ValueError("Transformation not yet derived. Call `derive_transform` first.")
 
         # Convert yaw, pitch, roll to a quaternion
-        raw_quaternion = R.from_euler('xzy', yaw_pitch_roll, degrees=True).as_quat()
+        # order = 'xzy'
+        # order = 'zxy'
+        order = 'zyx'
+        raw_quaternion = R.from_euler(order, yaw_pitch_roll, degrees=True).as_quat()
 
         # Convert transformation matrix to 3x3 rotation matrix
         rotation_matrix = self.transformation_matrix[:3, :3]
@@ -391,7 +394,8 @@ class ViveToRobotTransform:
         transformed_rotation_matrix = rotation_matrix @ R.from_quat(raw_quaternion).as_matrix()
 
         # Convert transformed rotation back to Euler angles
-        transformed_euler = R.from_matrix(transformed_rotation_matrix).as_euler('xzy', degrees=True)
+        transformed_euler = R.from_matrix(transformed_rotation_matrix).as_euler(order, degrees=True)
+        # transformed_euler = (transformed_euler + 180) % 360 - 180
         return transformed_euler.tolist()
 
 

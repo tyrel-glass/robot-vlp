@@ -42,17 +42,17 @@ def calculate_turn_angles(df):
     for i in range(2, len(df) - 1):
         if 'TURN'  in df.loc[i, 'last_cmd']:
             # Coordinates for the current row
-            x_curr, y_curr = df.loc[i, ['x', 'y']]
+            x_curr, y_curr = df.loc[i, ['vive_x', 'vive_y']]
 
             # Coordinates 2 rows back
-            x_back_2, y_back_2 = df.loc[i - 2, ['x', 'y']]
+            x_back_2, y_back_2 = df.loc[i - 2, ['vive_x', 'vive_y']]
 
            # Coordinates 2 rows back
-            x_back_1, y_back_1 = df.loc[i - 1, ['x', 'y']]
+            x_back_1, y_back_1 = df.loc[i - 1, ['vive_x', 'vive_y']]
 
 
             # Coordinates 1 row forward
-            x_forward, y_forward = df.loc[i + 1, ['x', 'y']]
+            x_forward, y_forward = df.loc[i + 1, ['vive_x', 'vive_y']]
 
             # Vectors originating from the current row
             vector_back = np.array([x_back_1 - x_back_2, y_back_1 - y_back_2])
