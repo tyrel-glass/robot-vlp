@@ -384,7 +384,7 @@ class ViveToRobotTransform:
         # Convert yaw, pitch, roll to a quaternion
         # order = 'xzy'
         # order = 'zxy'
-        order = 'zyx'
+        order = 'zxy'
         raw_quaternion = R.from_euler(order, yaw_pitch_roll, degrees=True).as_quat()
 
         # Convert transformation matrix to 3x3 rotation matrix

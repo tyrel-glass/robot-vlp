@@ -25,6 +25,25 @@ def calculate_distance_2d(df):
     df['distance_traveled'] = np.sqrt(x**2 + y**2)
 
     return df
+def calculate_move_heading(df):
+    df['move_heading'] = np.nan
+    for i in range(2, len(df) - 1):
+        if 'MOVE'  in df.loc[i, 'last_cmd']:
+            # Coordinates for the current row
+            x_cur, y_cur = df.loc[i, ['vive_x', 'vive_y']]
+
+           # Coordinates 1 row back
+            x_back_1, y_back_1 = df.loc[i - 1, ['vive_x', 'vive_y']]
+
+
+            x_d =  x_cur - x_back_1
+            y_d =  y_cur - y_back_1
+            new_heading = np.arctan2(x_d, y_d)*180/np.pi
+
+            # Convert to degrees and store in the DataFrame
+            df.loc[i, 'move_heading'] = new_heading
+
+    return df           
 
 
 def calculate_turn_angles(df):
