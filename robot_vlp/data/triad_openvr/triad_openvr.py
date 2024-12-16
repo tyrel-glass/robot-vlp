@@ -11,28 +11,85 @@ def update_text(txt):
     sys.stdout.write('\r'+txt)
     sys.stdout.flush()
 
-#Convert the standard 3x4 position/rotation matrix to a x,y,z location and the appropriate Euler angles (in degrees)
+# #Convert the standard 3x4 position/rotation matrix to a x,y,z location and the appropriate Euler angles (in degrees)
+# def convert_to_euler(pose_mat):
+#     yaw = 180 / math.pi * math.atan2(pose_mat[1][0], pose_mat[0][0])
+#     pitch = 180 / math.pi * math.atan2(pose_mat[2][0], pose_mat[0][0])
+#     roll = 180 / math.pi * math.atan2(pose_mat[2][1], pose_mat[2][2])
+#     x = pose_mat[0][3]
+#     y = pose_mat[1][3]
+#     z = pose_mat[2][3]
+#     return [x,y,z,yaw,pitch,roll]
+
+#Convert the standard 3x4 position/rotation matrix to a x,y,z location and the appropriate Quaternion
+# def convert_to_quaternion(pose_mat):
+#     # Per issue #2, adding a abs() so that sqrt only results in real numbers
+#     r_w = math.sqrt(abs(1+pose_mat[0][0]+pose_mat[1][1]+pose_mat[2][2]))/2
+#     r_x = (pose_mat[2][1]-pose_mat[1][2])/(4*r_w)
+#     r_y = (pose_mat[0][2]-pose_mat[2][0])/(4*r_w)
+#     r_z = (pose_mat[1][0]-pose_mat[0][1])/(4*r_w)
+
+#     x = pose_mat[0][3]
+#     y = pose_mat[1][3]
+#     z = pose_mat[2][3]
+#     return [x,y,z,r_w,r_x,r_y,r_z]
+
+#==========================================================================================================
+# NEW CODE
+#==========================================================================================================
 def convert_to_euler(pose_mat):
-    yaw = 180 / math.pi * math.atan2(pose_mat[1][0], pose_mat[0][0])
-    pitch = 180 / math.pi * math.atan2(pose_mat[2][0], pose_mat[0][0])
-    roll = 180 / math.pi * math.atan2(pose_mat[2][1], pose_mat[2][2])
     x = pose_mat[0][3]
     y = pose_mat[1][3]
     z = pose_mat[2][3]
-    return [x,y,z,yaw,pitch,roll]
+    rot = get_proper_euler(pose_mat)
+    return [x,y,z,rot['x'],rot['y']-180,rot['z']] #Y is flipped!
+#==========================================================================================================
 
-#Convert the standard 3x4 position/rotation matrix to a x,y,z location and the appropriate Quaternion
+
+
+#==========================================================================================================
+# NEW CODE
+#==========================================================================================================
 def convert_to_quaternion(pose_mat):
-    # Per issue #2, adding a abs() so that sqrt only results in real numbers
-    r_w = math.sqrt(abs(1+pose_mat[0][0]+pose_mat[1][1]+pose_mat[2][2]))/2
-    r_x = (pose_mat[2][1]-pose_mat[1][2])/(4*r_w)
-    r_y = (pose_mat[0][2]-pose_mat[2][0])/(4*r_w)
-    r_z = (pose_mat[1][0]-pose_mat[0][1])/(4*r_w)
+    r_w = math.sqrt( max( 0, 1 + pose_mat[0][0] + pose_mat[1][1]+ pose_mat[2][2] ) ) / 2
+    r_x = math.sqrt( max( 0, 1 + pose_mat[0][0] - pose_mat[1][1] - pose_mat[2][2] ) ) / 2
+    r_y = math.sqrt( max( 0, 1 - pose_mat[0][0] + pose_mat[1][1] - pose_mat[2][2] ) ) / 2
+    r_z = math.sqrt( max( 0, 1 - pose_mat[0][0] - pose_mat[1][1] + pose_mat[2][2] ) ) / 2
+    r_x *= math.copysign(1, r_x * ( -pose_mat[2][1] + pose_mat[1][2] ) )
+    r_y *= math.copysign(1,r_y * ( -pose_mat[0][2] + pose_mat[2][0] ) )
+    r_z *= math.copysign(1,r_z * ( pose_mat[1][0] - pose_mat[0][1] ) )
 
     x = pose_mat[0][3]
     y = pose_mat[1][3]
     z = pose_mat[2][3]
     return [x,y,z,r_w,r_x,r_y,r_z]
+#==========================================================================================================
+
+
+
+
+
+#==========================================================================================================
+# NEW CODE
+#==========================================================================================================
+#Convert the 3x4 position/rotation matrix to a x,y,z location and the appropriate Euler angles (in radians)
+def convert_to_radians(pose_mat):
+
+    roundfact = 16
+
+    x = pose_mat[0][3]
+    y = pose_mat[1][3]
+    z = pose_mat[2][3]
+
+    # Algorhitm 1
+
+    #read here: https://steamcommunity.com/app/358720/discussions/0/343787920117426152/
+    pitch = math.atan2(pose_mat[2][1], pose_mat[2][2])
+    yaw = math.asin(pose_mat[2][0])
+    roll = math.atan2(-pose_mat[1][0], pose_mat[0][0])
+    return [x,y,z,yaw, pitch, roll]
+#==========================================================================================================
+
 
 #Define a class to make it easy to append pose matricies and convert to both Euler and Quaternion for plotting
 class pose_sample_buffer():
@@ -67,7 +124,11 @@ class pose_sample_buffer():
 
 def get_pose(vr_obj):
     return vr_obj.getDeviceToAbsoluteTrackingPose(openvr.TrackingUniverseStanding, 0, openvr.k_unMaxTrackedDeviceCount)
-
+#======
+# new 
+#=====
+def get_pose_2(vr_obj):
+    return vr_obj.getControllerStateWithPose(1,1)
 
 class vr_tracked_device():
     def __init__(self,vr_obj,index,device_class):
@@ -109,6 +170,15 @@ class vr_tracked_device():
             return convert_to_euler(pose[self.index].mDeviceToAbsoluteTracking)
         else:
             return None
+        
+    #get the pose with orientation in radians
+    def get_pose_radians(self):
+
+
+        pose = get_pose_2(self.vr)
+        return convert_to_radians(pose[2].mDeviceToAbsoluteTracking)
+    
+
 
     def get_pose_matrix(self, pose=None):
         if pose == None:
@@ -297,3 +367,87 @@ class triad_openvr():
                 else:
                     print("  "+device+" ("+self.devices[device].get_serial()+
                           ", "+self.devices[device].get_model()+")")
+
+
+
+
+#####################################
+#####################################
+######################################
+#### This code converts the python hmdmatrix34_t equivalent that you get from pose.mDeviceToAbsoluteTracking into sort-of functioning Euler angles.
+#### Euler angles are still Euler angles however, so be careful.
+# new code for converstion
+#From https://gist.github.com/awesomebytes/778d4a1720a0ec3af2086ff6a0b057c3
+def from_matrix_to_pose_dict(matrix):
+    pose = {}
+    # From http://steamcommunity.com/app/358720/discussions/0/358417008714224220/#c359543542244499836
+    position = {}
+    position['x'] = matrix[0][3]
+    position['y'] = matrix[1][3]
+    position['z'] = matrix[2][3]
+    q = {}
+    q['w'] = math.sqrt(max(0, 1 + matrix[0][0] + matrix[1][1] + matrix[2][2])) / 2.0
+    q['x'] = math.sqrt(max(0, 1 + matrix[0][0] - matrix[1][1] - matrix[2][2])) / 2.0
+    q['y'] = math.sqrt(max(0, 1 - matrix[0][0] + matrix[1][1] - matrix[2][2])) / 2.0
+    q['z'] = math.sqrt(max(0, 1 - matrix[0][0] - matrix[1][1] + matrix[2][2])) / 2.0
+    q['x'] = math.copysign(q['x'], matrix[2][1] - matrix[1][2])
+    q['y'] = math.copysign(q['y'], matrix[0][2] - matrix[2][0])
+    q['z'] = math.copysign(q['z'], matrix[1][0] - matrix[0][1])
+    pose['position'] = position
+    pose['orientation'] = q
+    return pose
+
+
+#Ported from https://www.reddit.com/r/Vive/comments/6toiem/how_to_get_each_axis_rotation_from_vive/dlmczdn/
+def NormalizeAngle(angle):
+    while (angle > 360):
+        angle -= 360
+    while (angle < 0):
+        angle += 360
+    return angle
+
+def NormalizeAngles(angles):
+    angles['x'] = NormalizeAngle(angles['x'])
+    angles['y'] = NormalizeAngle(angles['y'])
+    angles['z'] = NormalizeAngle(angles['z'])
+    return angles
+
+def RadianToDegree(angles):
+    angles['x'] = math.degrees(angles['x'])
+    angles['y'] = math.degrees(angles['y'])
+    angles['z'] = math.degrees(angles['z'])
+    return angles
+
+def get_proper_euler(matrix):
+    in_quat = from_matrix_to_pose_dict(matrix)
+    sqw = in_quat['orientation']['w'] * in_quat['orientation']['w']
+    sqx = in_quat['orientation']['x'] * in_quat['orientation']['x']
+    sqy = in_quat['orientation']['y'] * in_quat['orientation']['y']
+    sqz = in_quat['orientation']['z'] * in_quat['orientation']['z']
+    unit = sqx + sqy + sqz + sqw # if normalised is one, otherwise is correction factor
+    test = in_quat['orientation']['x'] * in_quat['orientation']['w'] - in_quat['orientation']['y'] * in_quat['orientation']['z']
+
+    v = { 'x': 0, 'y': 0, 'z':0 }
+
+    if (test > 0.49995 * unit): #singularity at north pole
+        v['y'] = 2.0 * math.atan2(in_quat['orientation']['y'], in_quat['orientation']['x'])
+        v['x'] = math.pi / 2.0
+        v['z'] = 0
+        return NormalizeAngles(RadianToDegree(v))
+
+    if (test > 0.49995 * unit): #singularity at south pole
+        v['y'] = -2.0 * math.atan2(in_quat['orientation']['y'], in_quat['orientation']['x'])
+        v['x'] = -math.pi / 2.0
+        v['z'] = 0
+        return NormalizeAngles(RadianToDegree(v))
+
+    v['y'] = math.atan2(2 * in_quat['orientation']['x'] * in_quat['orientation']['w'] + 2.0 * in_quat['orientation']['y'] * in_quat['orientation']['z'], 1 - 2.0 * (in_quat['orientation']['z'] * in_quat['orientation']['z'] + in_quat['orientation']['w'] * in_quat['orientation']['w'])) # Yaw
+    v['x'] = math.asin(2 * (in_quat['orientation']['x'] * in_quat['orientation']['z'] - in_quat['orientation']['w'] * in_quat['orientation']['y'])) # Pitch
+    v['z'] = math.atan2(2 * in_quat['orientation']['x'] * in_quat['orientation']['y'] + 2.0 * in_quat['orientation']['z'] * in_quat['orientation']['w'], 1 - 2.0 * (in_quat['orientation']['y'] * in_quat['orientation']['y'] + in_quat['orientation']['z'] * in_quat['orientation']['z'])) # Roll
+    return NormalizeAngles(RadianToDegree(v))
+
+
+
+
+
+
