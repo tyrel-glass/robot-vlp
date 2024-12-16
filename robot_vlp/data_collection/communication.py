@@ -177,7 +177,7 @@ def vive_setup():
 def read_vive(vive, n_readings = 10 ):
     readings = []
     for _ in range(n_readings):
-        readings.append(np.array(vive.devices["tracker_1"].get_pose_euler()))
+        readings.append(np.array(vive.devices["tracker_1"].get_pose_matrix()))
         time.sleep(0.1)
     # mean_readings = np.mean(readings, axis = 0)
     return readings
@@ -190,29 +190,28 @@ def take_vive_cal_point(point_no, log_file, vive, raw = True):
 
 def get_last_vive_position(log_file):
     # Load the log file
-    df = pd.read_csv(log_file, delimiter='|', header=0, names=['vive_data','vlp_data', 'last_cmd'])
+    df = pd.read_csv(log_file, delimiter='|', header=0)
     # Extract the vive_data from the last row
-    last_row_vive_data = df.iloc[-1]['vive_data']
-    mean_readings = np.array(eval(last_row_vive_data.replace('array', 'np.array'))).mean(axis = 0)
-    return mean_readings[:3]
-
-def average_vive_readings(data):
-    try:
-        return average_of_closest_to_median(data, num_points= 5)
-    except:
-        return np.nan
+    df = df.iloc[-1:]
+    vive_data = parse_vive(df)
+    # mean_readings = np.array(eval(last_row_vive_data.replace('array', 'np.array'))).mean(axis = 0)
+    return vive_data['vive_data'].iloc[0]
 
 def parse_vive(df):
-        def check_for_none_array(v):
-                if len(v[0].reshape(-1)) == 1:
-                        return np.nan
-                else:
-                        return v
+
+        def average_vive_matrix(list_of_matricies):
+                list_of_matricies = [a['m'] for a in list_of_matricies]  #convert to normal array
+                return np.mean(list_of_matricies, axis = 0)
+
+        # convert from string
         df['vive_data'] = df['vive_data'].apply( lambda v: np.array(eval(v.replace('array','np.array'))))
+
+        def check_for_none_array(v):
+                return v
         df['vive_data'] = df['vive_data'].apply(check_for_none_array) #also pull out only x, y, z
 
         row_filt = df['vive_data'].notna()
-        df.loc[row_filt, 'vive_data'] = df['vive_data'][row_filt].apply(lambda v: np.apply_along_axis(average_vive_readings, 0,v))
+        df.loc[row_filt, 'vive_data'] = df['vive_data'][row_filt].apply(average_vive_matrix)
 
         return df
 
@@ -221,182 +220,304 @@ def transform_vive_df(df):
     transformer.derive_transform(df)
 
     na_filter = df['vive_data'].notna()
-    vive_data = np.array(df[na_filter]['vive_data'].to_list())
 
-    new_vive = np.apply_along_axis(transformer.transform_point, 1, vive_data[:,:3])
-    new_pose = np.apply_along_axis(transformer.transform_orientation, 1, vive_data[:,3:])
+    df.loc[na_filter,'transformed_vive'] = df['vive_data'].apply(lambda d: transformer.transform_pose(add_bottom_row(d)))
 
-    df.loc[na_filter, ['vive_x', 'vive_z', 'vive_y']] = new_vive
-    df.loc[na_filter, ['vive_yaw', 'vive_pitch', 'vive_roll']] = new_pose
+    vive_labels = ['vive_x', 'vive_y', 'vive_z', 'vive_yaw', 'vive_pitch','vive_roll']
+    df.loc[na_filter, vive_labels] =  np.array(df.loc[na_filter,'transformed_vive'].apply(extract_pose_y_up).to_list())
+
     return df
 
 
 ######################## VIVE TRANSLANTION CODE #########################
-
 class ViveToRobotTransform:
     def __init__(self):
         self.transformation_matrix = None
- 
 
     def derive_transform(self, df):
         """
-        Derive the translation vector and rotation matrix using rotations around the origin.
+        Derive the transformation matrix using pose matrices (4x4).
         """
         # Extract calibration points
         calibration_points = df[df['last_cmd'].str.startswith('CAL')].head(3)
         assert len(calibration_points) == 3, "Insufficient calibration points for alignment."
 
-        # Known robot coordinates for calibration points
-        robot_coords = np.array([
-            [0,0, 0.998],  # CAL:1
-            [0, 0, 0],      # CAL:2
-            [1.185, 0, 0]   # CAL:3
-        ])
+        # Known robot pose matrices for calibration points (identity rotation for simplicity in this example)
+        robot_poses = [
+            np.array([[1, 0, 0, 0],
+                      [0, 1, 0, 0],
+                      [0, 0, 1, 0.9],
+                      [0, 0, 0, 1]]),  # CAL:1
+            np.array([[1, 0, 0, 0],
+                      [0, 1, 0, 0],
+                      [0, 0, 1, 0],
+                      [0, 0, 0, 1]]),  # CAL:2
+            np.array([[1, 0, 0, 0.9],
+                      [0, 1, 0, 0],
+                      [0, 0, 1, 0],
+                      [0, 0, 0, 1]])   # CAL:3
+        ]
 
+        # Vive pose matrices (ensure homogeneous 4x4 matrices)
+        vive_poses = calibration_points['vive_data'].apply(np.array).to_list()
 
+        # Compute the transformation matrix using point-to-point alignment
+        robot_matrix = np.array(robot_poses)
+        vive_matrix = np.array(vive_poses)
 
-        calibration_points['vive_data'] = calibration_points['vive_data'].apply(lambda v: v[:3])
+        # Solve for the transformation matrix
+        self.transformation_matrix = self.align_poses(vive_matrix, robot_matrix)
 
-        vive_positions = calibration_points['vive_data']
-
-        vive_coords = np.stack(vive_positions.to_list())  # Extract x, y, z coordinates
-        vive_data = vive_coords.T
-        vive_data = np.concatenate((vive_data, np.ones((1,max(vive_data.shape)))),axis = 0)
-
-        # Known robot coordinates for calibration points
-        ref_data = np.array([
-            [0,   0,  0.998],  #CAL:1
-            [0,   0,  0  ],    #CAL:2
-            [1.185,   0,  0],  #CAL:3
-        ]).T
-        ref_data = np.concatenate((ref_data, np.ones((1,max(ref_data.shape)))),axis = 0)
-
-
-        zero_basis_vector = 1  # the vector pointing to the "new" zero O'
-        x_basis_vector = 2     # vector formed between here and 0' will only have an x component
-        y_basis_vector = 0     # vector formed between heere and 0' will only have a y component
-        gt = ref_data
-
-
-        tr = gt[:,zero_basis_vector] - vive_data[:,zero_basis_vector] # find translation vector from vive origin to [0,0,0]
-        translation_matrix = self.translate_mat(np.identity(4), tr) # find translation matrix from vector
-        vi = translation_matrix.dot(vive_data)             # apply translation to vive points
-
-        vi = translation_matrix.dot(vive_data) # ensure we are dealing with translated data
-        gt_x = gt[:,x_basis_vector]   # vector only has an x component
-        vi_x = vi[:,x_basis_vector]
-
-        # By taking the cross product, we can get a new vecor in the y-z plane that has the angle
-        # from the unit y vector that we need to rotate the vive x-basis into the x-y plane
-        cross_x = np.cross(gt_x[:3].T, vi_x[:3].T)  # find cross product
-        x_ang = np.arctan2(cross_x[1],cross_x[2])   # find required angle
-
-        x_rotation_matrix = self.rot_x(np.identity(4),x_ang) # create the rotation matrix b
-        vi = x_rotation_matrix.dot(translation_matrix.dot(vive_data))  #apply translation and rotation to data
-
-
-        vi = x_rotation_matrix.dot(translation_matrix.dot(vive_data))  #ensure translation is upto date
-        z_ang = np.arctan2(vi[1,x_basis_vector] , vi[0,x_basis_vector]) # calculate angle to rotate
-        z_rotation_matrix = self.rot_z(np.identity(4), -z_ang)
-        vi = z_rotation_matrix.dot(vi)
-
-
-
-        vi = z_rotation_matrix.dot(x_rotation_matrix.dot(translation_matrix.dot(vive_data)))
-        gt_y = gt[:,y_basis_vector]
-        vi_y = vi[:,y_basis_vector]
-        x_ang = np.arctan2(vi[1,y_basis_vector] , vi[2,y_basis_vector])
-        x_rotation_matrix_2 = self.rot_x(np.identity(4), x_ang)
-        vi = x_rotation_matrix_2.dot(vi)
-
-
-        final_transform = x_rotation_matrix_2.dot(z_rotation_matrix.dot(x_rotation_matrix.dot(translation_matrix.dot(np.identity(4)))))
-        self.transformation_matrix = final_transform
-        
-
-    def transform_point(self, point):
+    def align_poses(self, vive_poses, robot_poses):
         """
-        Transform a single point using the derived translation and rotation matrix.
+        Compute the best-fit transformation matrix between two sets of pose matrices.
         """
-        if self.transformation_matrix is None :
-            raise ValueError("Transformation not yet derived. Call `derive_transform` first.")
-   
-        data = np.append(point, 1).reshape(4,-1)
-        new_point = self.transformation_matrix.dot(data)
-        return new_point[:3].reshape(3)
+        # Compute centroids
+        vive_centroid = np.mean([pose[:3, 3] for pose in vive_poses], axis=0)
+        robot_centroid = np.mean([pose[:3, 3] for pose in robot_poses], axis=0)
 
-    # function to translate the origin by vec
-    def translate_mat(self, mat, vec):    
-        dx = vec[0]
-        dy = vec[1]
-        dz = vec[2]
-        trans_mat=np.array([
-            [1,0,0,dx],
-            [0,1,0,dy],
-            [0,0,1,dz],
-            [0,0,0,1]
-        ])
-        return trans_mat.dot( mat)
+        # Translate poses to origin (center them)
+        vive_centered = [pose.copy() for pose in vive_poses]
+        robot_centered = [pose.copy() for pose in robot_poses]
 
-    def find_dot_ang(v1, v2):
-        dot = np.dot(v1[:3], v2[:3])
-        mag = np.linalg.norm(v1[:3]) * np.linalg.norm(v2[:3])
-        ang = np.arccos(dot/mag)
-        return ang
+        for vc, rc in zip(vive_centered, robot_centered):
+            vc[:3, 3] -= vive_centroid
+            rc[:3, 3] -= robot_centroid
 
-    def rot_x(self, mat, ang):
+        # Compute rotation using Kabsch algorithm
+        vive_stack = np.hstack([vc[:3, 3].reshape(-1, 1) for vc in vive_centered])
+        robot_stack = np.hstack([rc[:3, 3].reshape(-1, 1) for rc in robot_centered])
+        H = vive_stack @ robot_stack.T
+        U, _, Vt = np.linalg.svd(H)
+        rotation_matrix = U @ Vt
 
-        rot_mat = np.array([
-            [1,          0,             0,            0],
-            [0,          np.cos(ang),  -np.sin(ang),  0],
-            [0,          np.sin(ang),   np.cos(ang),  0],
-            [0,          0,             0,            1]
-        ])
-        return rot_mat.dot(mat)
+        # Check for reflection
+        if np.linalg.det(rotation_matrix) < 0:
+            Vt[-1, :] *= -1
+            rotation_matrix = U @ Vt
 
-    def rot_y(self, mat,ang):
-        
-        rot_mat = np.array([
-            [np.cos(ang) , 0, np.sin(ang), 0],
-            [0,            1,    0,        0],
-            [-np.sin(ang), 0, np.cos(ang), 0],
-            [0,            0,      0,      1]
-        ])
-        return rot_mat.dot(mat)
+        # Translation is the difference between centroids
+        translation_vector = robot_centroid - rotation_matrix @ vive_centroid
 
-    def rot_z(self, mat, ang):
-        rot_mat = np.array([
-            [np.cos(ang), -np.sin(ang), 0,  0],
-            [np.sin(ang), np.cos(ang),  0,  0],
-            [0,             0,          1,  0],
-            [0,             0,          0,  1]
-        ])
-        
-        return rot_mat.dot(mat)
-    
+        # Combine into a single 4x4 transformation matrix
+        transformation_matrix = np.eye(4)
+        transformation_matrix[:3, :3] = rotation_matrix
+        transformation_matrix[:3, 3] = translation_vector
 
-    # from scipy.spatial.transform import Rotation as R
+        return transformation_matrix
 
-    def transform_orientation(self, yaw_pitch_roll):
+    def transform_pose(self, pose):
+        """
+        Transform a 4x4 pose matrix using the derived transformation.
+        """
         if self.transformation_matrix is None:
             raise ValueError("Transformation not yet derived. Call `derive_transform` first.")
 
-        # Convert yaw, pitch, roll to a quaternion
-        # order = 'xzy'
-        # order = 'zxy'
-        order = 'zyx'
-        raw_quaternion = R.from_euler(order, yaw_pitch_roll, degrees=True).as_quat()
+        return self.transformation_matrix @ pose
 
-        # Convert transformation matrix to 3x3 rotation matrix
-        rotation_matrix = self.transformation_matrix[:3, :3]
 
-        # Apply transformation matrix to the raw quaternion (convert it back to matrix first)
-        transformed_rotation_matrix = rotation_matrix @ R.from_quat(raw_quaternion).as_matrix()
+def extract_euler_angles(rotation_matrix, sequence='xyz', degrees=False):
+  
+    # Check if the matrix is 3x3
+    if rotation_matrix.shape != (3, 3):
+        raise ValueError("Rotation matrix must be 3x3.")
+    
+    # Convert the rotation matrix into a Rotation object
+    r = R.from_matrix(rotation_matrix)
 
-        # Convert transformed rotation back to Euler angles
-        transformed_euler = R.from_matrix(transformed_rotation_matrix).as_euler(order, degrees=True)
-        # transformed_euler = (transformed_euler + 180) % 360 - 180
-        return transformed_euler.tolist()
+    # Extract Euler angles using the specified sequence
+    euler_angles = r.as_euler(sequence, degrees=degrees)
+    
+    return euler_angles
+
+
+def extract_pose_y_up(pose_mat):
+
+    import numpy as np
+    import math
+    # Translation components (x, y, z)
+    x = pose_mat[0, 3]
+    y = pose_mat[1, 3]
+    z = pose_mat[2, 3]
+
+    # Rotation matrix components
+    R = pose_mat[:3, :3]
+    yaw, pitch, roll = extract_euler_angles(R, sequence='zyx', degrees=True)
+    return [x, y, z, yaw, pitch, roll]
+
+def add_bottom_row(matrix_3x4):
+    """
+    Add the bottom row [0, 0, 0, 1] to a 3x4 pose matrix to create a 4x4 pose matrix.
+    """
+    bottom_row = np.array([[0, 0, 0, 1]], dtype=matrix_3x4.dtype)
+    matrix_4x4 = np.vstack((matrix_3x4, bottom_row))
+    return matrix_4x4
+
+
+# class ViveToRobotTransform:
+#     def __init__(self):
+#         self.transformation_matrix = None
+ 
+
+#     def derive_transform(self, df):
+#         """
+#         Derive the translation vector and rotation matrix using rotations around the origin.
+#         """
+#         # Extract calibration points
+#         calibration_points = df[df['last_cmd'].str.startswith('CAL')].head(3)
+#         assert len(calibration_points) == 3, "Insufficient calibration points for alignment."
+
+#         # Known robot coordinates for calibration points
+#         robot_coords = np.array([
+#             [0,0, 0.998],  # CAL:1
+#             [0, 0, 0],      # CAL:2
+#             [1.185, 0, 0]   # CAL:3
+#         ])
+
+
+
+#         calibration_points['vive_data'] = calibration_points['vive_data'].apply(lambda v: v[:3])
+
+#         vive_positions = calibration_points['vive_data']
+
+#         vive_coords = np.stack(vive_positions.to_list())  # Extract x, y, z coordinates
+#         vive_data = vive_coords.T
+#         vive_data = np.concatenate((vive_data, np.ones((1,max(vive_data.shape)))),axis = 0)
+
+#         # Known robot coordinates for calibration points
+#         ref_data = np.array([
+#             [0,   0,  0.998],  #CAL:1
+#             [0,   0,  0  ],    #CAL:2
+#             [1.185,   0,  0],  #CAL:3
+#         ]).T
+#         ref_data = np.concatenate((ref_data, np.ones((1,max(ref_data.shape)))),axis = 0)
+
+
+#         zero_basis_vector = 1  # the vector pointing to the "new" zero O'
+#         x_basis_vector = 2     # vector formed between here and 0' will only have an x component
+#         y_basis_vector = 0     # vector formed between heere and 0' will only have a y component
+#         gt = ref_data
+
+
+#         tr = gt[:,zero_basis_vector] - vive_data[:,zero_basis_vector] # find translation vector from vive origin to [0,0,0]
+#         translation_matrix = self.translate_mat(np.identity(4), tr) # find translation matrix from vector
+#         vi = translation_matrix.dot(vive_data)             # apply translation to vive points
+
+#         vi = translation_matrix.dot(vive_data) # ensure we are dealing with translated data
+#         gt_x = gt[:,x_basis_vector]   # vector only has an x component
+#         vi_x = vi[:,x_basis_vector]
+
+#         # By taking the cross product, we can get a new vecor in the y-z plane that has the angle
+#         # from the unit y vector that we need to rotate the vive x-basis into the x-y plane
+#         cross_x = np.cross(gt_x[:3].T, vi_x[:3].T)  # find cross product
+#         x_ang = np.arctan2(cross_x[1],cross_x[2])   # find required angle
+
+#         x_rotation_matrix = self.rot_x(np.identity(4),x_ang) # create the rotation matrix b
+#         vi = x_rotation_matrix.dot(translation_matrix.dot(vive_data))  #apply translation and rotation to data
+
+
+#         vi = x_rotation_matrix.dot(translation_matrix.dot(vive_data))  #ensure translation is upto date
+#         z_ang = np.arctan2(vi[1,x_basis_vector] , vi[0,x_basis_vector]) # calculate angle to rotate
+#         z_rotation_matrix = self.rot_z(np.identity(4), -z_ang)
+#         vi = z_rotation_matrix.dot(vi)
+
+
+
+#         vi = z_rotation_matrix.dot(x_rotation_matrix.dot(translation_matrix.dot(vive_data)))
+#         gt_y = gt[:,y_basis_vector]
+#         vi_y = vi[:,y_basis_vector]
+#         x_ang = np.arctan2(vi[1,y_basis_vector] , vi[2,y_basis_vector])
+#         x_rotation_matrix_2 = self.rot_x(np.identity(4), x_ang)
+#         vi = x_rotation_matrix_2.dot(vi)
+
+
+#         final_transform = x_rotation_matrix_2.dot(z_rotation_matrix.dot(x_rotation_matrix.dot(translation_matrix.dot(np.identity(4)))))
+#         self.transformation_matrix = final_transform
+        
+
+#     def transform_point(self, point):
+#         """
+#         Transform a single point using the derived translation and rotation matrix.
+#         """
+#         if self.transformation_matrix is None :
+#             raise ValueError("Transformation not yet derived. Call `derive_transform` first.")
+   
+#         data = np.append(point, 1).reshape(4,-1)
+#         new_point = self.transformation_matrix.dot(data)
+#         return new_point[:3].reshape(3)
+
+#     # function to translate the origin by vec
+#     def translate_mat(self, mat, vec):    
+#         dx = vec[0]
+#         dy = vec[1]
+#         dz = vec[2]
+#         trans_mat=np.array([
+#             [1,0,0,dx],
+#             [0,1,0,dy],
+#             [0,0,1,dz],
+#             [0,0,0,1]
+#         ])
+#         return trans_mat.dot( mat)
+
+#     def find_dot_ang(v1, v2):
+#         dot = np.dot(v1[:3], v2[:3])
+#         mag = np.linalg.norm(v1[:3]) * np.linalg.norm(v2[:3])
+#         ang = np.arccos(dot/mag)
+#         return ang
+
+#     def rot_x(self, mat, ang):
+
+#         rot_mat = np.array([
+#             [1,          0,             0,            0],
+#             [0,          np.cos(ang),  -np.sin(ang),  0],
+#             [0,          np.sin(ang),   np.cos(ang),  0],
+#             [0,          0,             0,            1]
+#         ])
+#         return rot_mat.dot(mat)
+
+#     def rot_y(self, mat,ang):
+        
+#         rot_mat = np.array([
+#             [np.cos(ang) , 0, np.sin(ang), 0],
+#             [0,            1,    0,        0],
+#             [-np.sin(ang), 0, np.cos(ang), 0],
+#             [0,            0,      0,      1]
+#         ])
+#         return rot_mat.dot(mat)
+
+#     def rot_z(self, mat, ang):
+#         rot_mat = np.array([
+#             [np.cos(ang), -np.sin(ang), 0,  0],
+#             [np.sin(ang), np.cos(ang),  0,  0],
+#             [0,             0,          1,  0],
+#             [0,             0,          0,  1]
+#         ])
+        
+#         return rot_mat.dot(mat)
+    
+
+#     # from scipy.spatial.transform import Rotation as R
+
+#     def transform_orientation(self, yaw_pitch_roll):
+#         if self.transformation_matrix is None:
+#             raise ValueError("Transformation not yet derived. Call `derive_transform` first.")
+
+#         # Convert yaw, pitch, roll to a quaternion
+#         # order = 'xzy'
+#         # order = 'zxy'
+#         order = 'zyx'
+#         raw_quaternion = R.from_euler(order, yaw_pitch_roll, degrees=True).as_quat()
+
+#         # Convert transformation matrix to 3x3 rotation matrix
+#         rotation_matrix = self.transformation_matrix[:3, :3]
+
+#         # Apply transformation matrix to the raw quaternion (convert it back to matrix first)
+#         transformed_rotation_matrix = rotation_matrix @ R.from_quat(raw_quaternion).as_matrix()
+
+#         # Convert transformed rotation back to Euler angles
+#         transformed_euler = R.from_matrix(transformed_rotation_matrix).as_euler(order, degrees=True)
+#         # transformed_euler = (transformed_euler + 180) % 360 - 180
+#         return transformed_euler.tolist()
 
 
 
@@ -531,7 +652,62 @@ def generate_scan_points(step=50, width=900, height=1000):
     return np.array(points)
 
 
+#====================================================================
+#                   ----- ROBOT FUNCTIONS ------
+#====================================================================
 
+
+
+def send_command_to_nano(command):
+    """
+    Sends a command to the ESP server, which forwards it to the Arduino Nano,
+    and retrieves the response.
+
+    :param command: Command string to send to the Nano.
+    :return: Response string from the Nano.
+    """
+    # ESP Server configuration
+    ESP_IP = "192.168.10.102"  # Replace with the ESP's IP address
+    ESP_PORT = 8080           # Port number defined in the ESP server code
+    try:
+        # Create a TCP socket
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as client_socket:
+            # Set a timeout of 30 seconds
+            client_socket.settimeout(30.0)
+
+            # Connect to the ESP server
+            client_socket.connect((ESP_IP, ESP_PORT))
+            print(f"Connected to ESP server at {ESP_IP}:{ESP_PORT}")
+
+            # Send the command
+            client_socket.sendall((command + '\n').encode('utf-8'))
+
+            # Receive the response
+            response = client_socket.recv(1024).decode('utf-8')
+            print(f"Response received: {response}")
+            return response
+    except socket.timeout:
+        print("Error: Operation timed out.")
+        return None
+    except Exception as e:
+        print(f"Error: {e}")
+        return None
+    
+
+
+
+def process_move_wifi(cmd, log_file, vive, transformer = None, vlp_read = True):
+
+    nano_response = send_command_to_nano(cmd)
+    print(nano_response)
+    nano_response = send_command_to_nano('')
+    vive_data = c.read_vive(vive)
+    if vlp_read:
+        # vlp_data = c.take_mean_fft(3)
+        vlp_data = c.read_n_vlp(10)
+    else:
+        vlp_data = None
+    c.vive_robot_log_write(vive_data,vlp_data, cmd = cmd, log_file = log_file)
 
 
 #====================================================================
