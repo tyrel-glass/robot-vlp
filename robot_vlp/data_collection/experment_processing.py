@@ -15,7 +15,7 @@ def calculate_distance_2d(df):
     Calculates the 2D distance traveled between consecutive points.
     """
     x = df['vive_x'].diff().values
-    y = df['vive_y'].diff().values
+    y = df['vive_z'].diff().values
     y[0]= 0
     x[0] = 0
 
@@ -30,10 +30,10 @@ def calculate_move_heading(df):
     for i in range(2, len(df) - 1):
         if 'MOVE'  in df.loc[i, 'last_cmd']:
             # Coordinates for the current row
-            x_cur, y_cur = df.loc[i, ['vive_x', 'vive_y']]
+            x_cur, y_cur = df.loc[i, ['vive_x', 'vive_z']]
 
            # Coordinates 1 row back
-            x_back_1, y_back_1 = df.loc[i - 1, ['vive_x', 'vive_y']]
+            x_back_1, y_back_1 = df.loc[i - 1, ['vive_x', 'vive_z']]
 
 
             x_d =  x_cur - x_back_1
@@ -61,17 +61,17 @@ def calculate_turn_angles(df):
     for i in range(2, len(df) - 1):
         if 'TURN'  in df.loc[i, 'last_cmd']:
             # Coordinates for the current row
-            x_curr, y_curr = df.loc[i, ['vive_x', 'vive_y']]
+            x_curr, y_curr = df.loc[i, ['vive_x', 'vive_z']]
 
             # Coordinates 2 rows back
-            x_back_2, y_back_2 = df.loc[i - 2, ['vive_x', 'vive_y']]
+            x_back_2, y_back_2 = df.loc[i - 2, ['vive_x', 'vive_z']]
 
            # Coordinates 2 rows back
-            x_back_1, y_back_1 = df.loc[i - 1, ['vive_x', 'vive_y']]
+            x_back_1, y_back_1 = df.loc[i - 1, ['vive_x', 'vive_z']]
 
 
             # Coordinates 1 row forward
-            x_forward, y_forward = df.loc[i + 1, ['vive_x', 'vive_y']]
+            x_forward, y_forward = df.loc[i + 1, ['vive_x', 'vive_z']]
 
             # Vectors originating from the current row
             vector_back = np.array([x_back_1 - x_back_2, y_back_1 - y_back_2])
