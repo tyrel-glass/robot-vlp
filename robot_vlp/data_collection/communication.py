@@ -3,7 +3,7 @@ import socket
 import time
 import serial
 import time
-# import robot_vlp.data.triad_openvr.triad_openvr as vr
+import robot_vlp.data.triad_openvr.triad_openvr as vr
 import pandas as pd
 import numpy as np
 import csv
@@ -701,13 +701,13 @@ def process_move_wifi(cmd, log_file, vive, transformer = None, vlp_read = True):
     nano_response = send_command_to_nano(cmd)
     print(nano_response)
     nano_response = send_command_to_nano('')
-    vive_data = c.read_vive(vive)
+    vive_data = read_vive(vive)
     if vlp_read:
         # vlp_data = c.take_mean_fft(3)
-        vlp_data = c.read_n_vlp(10)
+        vlp_data = read_n_vlp(10)
     else:
         vlp_data = None
-    c.vive_robot_log_write(vive_data,vlp_data, cmd = cmd, log_file = log_file)
+    vive_robot_log_write(vive_data,vlp_data, cmd = cmd, log_file = log_file)
 
 
 #====================================================================
