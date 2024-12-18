@@ -21,11 +21,11 @@ def average_vlp_readings(data):
     return average_of_closest_to_median(data, num_points= 5)
 
 def process_vlp(df):
-    df['vlp_data'] = df['vlp_data'].apply(lambda v: np.array([re for re in eval(v) if re is not None]))
+    df.loc[:,'vlp_data'] = df['vlp_data'].apply(lambda v: np.array([re for re in eval(v) if re is not None]))
 
-    df['pks'] = df['vlp_data'].apply(lambda v: [np.array(calc_pks(FFT_win(data)[0]))for data in v])
+    df.loc[:,'pks'] = df['vlp_data'].apply(lambda v: [np.array(calc_pks(FFT_win(data)[0]))for data in v])
 
-    df[['peak_1000Hz', 'peak_3000Hz', 'peak_5000Hz', 'peak_7000Hz']] = np.array(df['pks'].apply(lambda v: np.apply_along_axis(average_vlp_readings, 0,np.array(v))).to_list())
+    df.loc[:,['peak_1000Hz', 'peak_3000Hz', 'peak_5000Hz', 'peak_7000Hz']] = np.array(df['pks'].apply(lambda v: np.apply_along_axis(average_vlp_readings, 0,np.array(v))).to_list())
     
     return df
 
