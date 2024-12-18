@@ -20,7 +20,6 @@ def build_train_data(
         dataset_save_name: str,
         exclude_model_data: bool = False
 
- 
 ):
     
     include_model_data =  not exclude_model_data
@@ -32,7 +31,6 @@ def build_train_data(
 
     data_dir = INTERIM_DATA_DIR / input_path_data_dir # pull from default spot
     
-
 
     ###########################################
     # CONFIG PARAMETERS (to be passed via cmd)
