@@ -1,0 +1,2 @@
+cnc_fingerprint_01
+25mm distance, elevated platform, 15k,17k,20k,23k
