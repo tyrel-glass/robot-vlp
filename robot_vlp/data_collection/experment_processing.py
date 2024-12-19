@@ -1,6 +1,8 @@
 import numpy as np
 import pandas as pd
 
+import pickle
+
 import matplotlib.pyplot as plt
 import robot_vlp.data_collection.communication as c
 
@@ -153,13 +155,15 @@ def plot_surface(df):
 
 
 
-    def preprocess_path_data(input_df):
+def calculate_encoder_data(input_df):
     df = input_df.copy()
     df.reset_index(inplace = True)
     enc_per_degree = 11.34
     enc_per_cm = 89.08
 
     robot_moves = df['last_cmd'].to_list()
+
+    # set encoder val to current vive
     encoder_x_hist = [df['x_hist'].iloc[0]]
     encoder_y_hist = [df['y_hist'].iloc[0]]
     encoder_heading_hist = [c.normalize_angle(df['vive_yaw'].iloc[0] + 180)]
@@ -191,12 +195,41 @@ def plot_surface(df):
     df['encoder_x_hist'] = encoder_x_hist
     df['encoder_y_hist'] = encoder_y_hist
 
-    df['heading_hist'] = [c.normalize_angle(a) for a in (df['vive_yaw'] + 180)]
+    return df
 
-    df = df[~df['last_cmd'].str.contains('TURN')]
-
+def calc_vlp_heading(df):
+    # calculate heading by looking at vector from last to cur point
     df['vlp_heading_hist'] = np.arctan2(df['vlp_x_hist'].diff(1) , df['vlp_y_hist'].diff(1)) *180/np.pi
+    
+    # populate initial heading 
     df.loc[0,'vlp_heading_hist'] = df['encoder_heading_hist'].iloc[0]
-    targets = ['x_hist', 'y_hist','heading_hist','vlp_x_hist', 'vlp_y_hist','vlp_heading_hist', 'encoder_x_hist','encoder_y_hist', 'encoder_heading_hist']
 
-    return df[targets].reset_index()
+    return df
+
+def plot_path(df, s, l):
+    df_1 = df.iloc[s:s+l]
+    plt.plot(df_1['x_hist'], df_1['y_hist'], marker = '.', label = 'actual')
+    plt.plot(df_1['vlp_x_hist'], df_1['vlp_y_hist'], marker = '.', label = 'vlp')
+    plt.plot(df_1['encoder_x_hist'], df_1['encoder_y_hist'], marker = '.', label = 'encoder')
+    plt.legend()
+
+
+def save_robot_run_data(df, save_file_name):
+    X_data = np.array([
+        df['encoder_x_hist'].to_list(), 
+        df['encoder_y_hist'].to_list(), 
+        df['encoder_heading_hist'].to_list(), 
+        df['vlp_x_hist'].to_list(), 
+        df['vlp_y_hist'].to_list(), 
+        df['vlp_heading_hist'].to_list()
+        ]).T
+
+    y_data = np.array([
+        df['x_hist'].to_list(),
+        df['y_hist'].to_list(),
+        df['heading_hist'].to_list()
+        ]).T
+
+    data_dic = {'X':X_data, 'y':y_data}
+    file_path = save_file_name
+    pickle.dump(data_dic, open(file_path , 'wb'))
