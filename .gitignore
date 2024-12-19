@@ -1,8 +1,9 @@
 # Data
-!/data/experiments/
+
 /data/
 
-!/data/experiments/**
+!/data/raw/experiments/
+!/data/raw/experiments/**
 
 # Training logs
 /models/training_logs/
