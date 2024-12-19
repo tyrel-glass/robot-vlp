@@ -2,12 +2,7 @@ import numpy as np
 import pandas as pd
 
 import matplotlib.pyplot as plt
-
-
-
-
-
-
+import robot_vlp.data_collection.communication as c
 
 # Calculate absolute 2D distance traveled
 def calculate_distance_2d(df):
@@ -103,8 +98,6 @@ def parse_command(cmd):
     return 0, 0
 
 
-
-
 def assess_move_errs(df):
 
     move_df = df[df['move_count']> 0 ]
@@ -157,3 +150,53 @@ def plot_surface(df):
     # Adjust layout and show the plot
     plt.tight_layout()
     plt.show()
+
+
+
+    def preprocess_path_data(input_df):
+    df = input_df.copy()
+    df.reset_index(inplace = True)
+    enc_per_degree = 11.34
+    enc_per_cm = 89.08
+
+    robot_moves = df['last_cmd'].to_list()
+    encoder_x_hist = [df['x_hist'].iloc[0]]
+    encoder_y_hist = [df['y_hist'].iloc[0]]
+    encoder_heading_hist = [c.normalize_angle(df['vive_yaw'].iloc[0] + 180)]
+
+    for move in robot_moves[1:]:
+
+        if 'TURN:' in move:
+            encoder_count = int(float(move.split(':')[1]))
+            angle_turned = encoder_count / enc_per_degree
+            cur_heading = encoder_heading_hist[-1]
+            encoder_heading_hist.append(cur_heading + angle_turned)
+            encoder_x_hist.append(encoder_x_hist[-1])
+            encoder_y_hist.append(encoder_y_hist[-1])
+        if 'MOVE:' in move:
+            encoder_count = int(float(move.split(':')[1]))
+            distance_moved = encoder_count / enc_per_cm
+            cur_x = encoder_x_hist[-1]
+            cur_y = encoder_y_hist[-1]
+            cur_heading = encoder_heading_hist[-1]
+
+            new_x = cur_x + (distance_moved/100)*np.sin(cur_heading /180 *np.pi)
+            new_y = cur_y + (distance_moved/100)*np.cos(cur_heading/180*np.pi)
+
+            encoder_x_hist.append(new_x)
+            encoder_y_hist.append(new_y)
+            encoder_heading_hist.append(encoder_heading_hist[-1])
+
+    df['encoder_heading_hist'] = [c.normalize_angle(a) for a in encoder_heading_hist]
+    df['encoder_x_hist'] = encoder_x_hist
+    df['encoder_y_hist'] = encoder_y_hist
+
+    df['heading_hist'] = [c.normalize_angle(a) for a in (df['vive_yaw'] + 180)]
+
+    df = df[~df['last_cmd'].str.contains('TURN')]
+
+    df['vlp_heading_hist'] = np.arctan2(df['vlp_x_hist'].diff(1) , df['vlp_y_hist'].diff(1)) *180/np.pi
+    df.loc[0,'vlp_heading_hist'] = df['encoder_heading_hist'].iloc[0]
+    targets = ['x_hist', 'y_hist','heading_hist','vlp_x_hist', 'vlp_y_hist','vlp_heading_hist', 'encoder_x_hist','encoder_y_hist', 'encoder_heading_hist']
+
+    return df[targets].reset_index()
