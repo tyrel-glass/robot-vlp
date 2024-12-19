@@ -1,10 +1,119 @@
 import numpy as np
 import pandas as pd
-
 import pickle
-
 import matplotlib.pyplot as plt
 import robot_vlp.data_collection.communication as c
+
+
+from pathlib import Path
+
+import typer
+from loguru import logger
+
+from robot_vlp.config import INTERIM_DATA_DIR, RAW_DATA_DIR, VLP_MODELS_DIR
+
+app = typer.Typer()
+
+
+@app.command()
+def main(
+    # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
+    # input_path: Path = RAW_DATA_DIR / "dataset.csv",
+    # output_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
+    # ----------------------------------------------
+):
+    
+    files = ['exp01','exp02','exp03','exp04']
+    # ---- REPLACE THIS WITH YOUR OWN CODE ----
+    logger.info("Processing experment dataset")
+
+    input_file = RAW_DATA_DIR / 'experiments/Robot/' / files[0]
+
+
+    vlp_models_path = VLP_MODELS_DIR / "CNC/CNC_vlp_models.pkl"
+    vlp_models =  pickle.load(open(vlp_models_path, 'rb'))
+
+
+    output_file = INTERIM_DATA_DIR / 'exp_vive_navigated_paths/' / files[0].split('.')[0] /'.pkl'
+
+    for vlp_name, vlp_model in vlp_models.items():
+        for filename in files:
+            logger.info(f"processing {filename} with {vlp_name}")
+            input_file = RAW_DATA_DIR / 'experiments/Robot/' / (filename+'.csv')
+            output_filename = f'{filename}_{vlp_name}.pkl'
+            output_file = INTERIM_DATA_DIR / 'exp_vive_navigated_paths/' /output_filename
+
+            run_data_dic = process_robot_exp_file(input_file, vlp_model)
+
+            pickle.dump(run_data_dic, open(output_file , 'wb'))
+
+
+
+
+    logger.success("Processing dataset complete.")
+    # -----------------------------------------
+
+
+
+def process_robot_exp_file(input_file, vlp_model):
+    logger.success("opending file: ", input_file)
+    df= pd.read_csv(input_file, delimiter = '|')
+    df = c.parse_vive(df)
+    df = c.transform_vive_df(df)
+
+    df = df[~df['last_cmd'].str.contains('CAL:')]#remove cal points
+
+    df = c.process_vlp(df)  
+
+    df['x_hist'] = df['vive_x'] +0.067*np.sin(df['vive_yaw']/180*np.pi)
+    df['y_hist'] = df['vive_z'] +0.067*np.cos(df['vive_yaw']/180*np.pi)
+    df['heading_hist'] = [c.normalize_angle(a) for a in (df['vive_yaw'] + 180)]
+
+    df[['vlp_x_hist', 'vlp_y_hist']] = vlp_model.predict(df[['L1', 'L2', 'L3', 'L4']].values)/1000 #cnc in mm
+
+    df = calculate_encoder_data(df)
+
+    df = df[~df['last_cmd'].str.contains('TURN')] # drop rows after a turn (before move)
+    df.reset_index(inplace = True)
+
+    df = calc_vlp_heading(df)
+
+    targets = ['x_hist', 'y_hist','heading_hist','vlp_x_hist', 'vlp_y_hist','vlp_heading_hist', 'encoder_x_hist','encoder_y_hist', 'encoder_heading_hist']
+    df = df[targets]
+
+
+    data_dic = convert_df_to_dic(df)
+
+    return data_dic
+
+    
+
+
+
+
+def convert_df_to_dic(df):
+    X_data = np.array([
+        df['encoder_x_hist'].to_list(), 
+        df['encoder_y_hist'].to_list(), 
+        df['encoder_heading_hist'].to_list(), 
+        df['vlp_x_hist'].to_list(), 
+        df['vlp_y_hist'].to_list(), 
+        df['vlp_heading_hist'].to_list()
+        ]).T
+
+    y_data = np.array([
+        df['x_hist'].to_list(),
+        df['y_hist'].to_list(),
+        df['heading_hist'].to_list()
+        ]).T
+
+    data_dic = {'X':X_data, 'y':y_data}
+    return data_dic
+
+
+
+
+
 
 # Calculate absolute 2D distance traveled
 def calculate_distance_2d(df):
@@ -214,22 +323,7 @@ def plot_path(df, s, l):
     plt.legend()
 
 
-def save_robot_run_data(df, save_file_name):
-    X_data = np.array([
-        df['encoder_x_hist'].to_list(), 
-        df['encoder_y_hist'].to_list(), 
-        df['encoder_heading_hist'].to_list(), 
-        df['vlp_x_hist'].to_list(), 
-        df['vlp_y_hist'].to_list(), 
-        df['vlp_heading_hist'].to_list()
-        ]).T
 
-    y_data = np.array([
-        df['x_hist'].to_list(),
-        df['y_hist'].to_list(),
-        df['heading_hist'].to_list()
-        ]).T
 
-    data_dic = {'X':X_data, 'y':y_data}
-    file_path = save_file_name
-    pickle.dump(data_dic, open(file_path , 'wb'))
+if __name__ == "__main__":
+    app()

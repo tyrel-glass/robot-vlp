@@ -100,6 +100,16 @@ create_environment:
 # 	$(PYTHON_INTERPRETER) robot_vlp/data/path_generation.py
 
 
+
+
+
+
+
+# build CNC fingerprint based vlp model
+models/vlp/CNC/CNC_vlp_models.pkl: robot_vlp/modeling/gen_cnc_vlp_model.py 
+	$(PYTHON_INTERPRETER) robot_vlp/modeling/gen_cnc_vlp_model.py
+
+
 models/default_rnn.keras: robot_vlp/modeling/rnn.py
 	$(PYTHON_INTERPRETER) robot_vlp/modeling/rnn.py default_rnn.keras
 
@@ -119,8 +129,8 @@ data/interm/navigation_paths.pkl: robot_vlp/data/path_creation.py
 reports/tables/vlp_performance.tex : models/vlp/vlp_models.pkl
 	$(PYTHON_INTERPRETER) robot_vlp/stats/vlp_model_performance.py
 ## Create VLP models
-models/vlp/vlp_models.pkl : data/external/vlp_dataset.csv robot_vlp/data/gen_vlp_model.py
-	$(PYTHON_INTERPRETER) robot_vlp/data/gen_vlp_model.py
+models/vlp/vlp_models.pkl : data/external/vlp_dataset.csv robot_vlp/data/gen_simulation_vlp_model.py
+	$(PYTHON_INTERPRETER) robot_vlp/data/gen_simulation_vlp_model.py
 
 ## Pull VLP Dataset
 data/external/vlp_dataset.csv : robot_vlp/data/pull_vlp_data.py
