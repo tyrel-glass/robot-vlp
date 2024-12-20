@@ -15,6 +15,11 @@ from robot_vlp.config import INTERIM_DATA_DIR, RAW_DATA_DIR, VLP_MODELS_DIR
 app = typer.Typer()
 
 
+
+enc_per_degree = 11.34
+enc_per_cm = 89.08
+
+
 @app.command()
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
@@ -264,8 +269,7 @@ def plot_surface(df):
 def calculate_encoder_data(input_df):
     df = input_df.copy()
     df.reset_index(inplace = True)
-    enc_per_degree = 11.34
-    enc_per_cm = 89.08
+
 
     robot_moves = df['last_cmd'].to_list()
 
