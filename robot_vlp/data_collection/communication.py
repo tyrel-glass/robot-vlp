@@ -207,8 +207,9 @@ def parse_vive(df):
         df['vive_data'] = df['vive_data'].apply( lambda v: np.array(eval(v.replace('array','np.array'))))
 
         def check_for_none_array(v):
-                return v
-        df['vive_data'] = df['vive_data'].apply(check_for_none_array) #also pull out only x, y, z
+                return [m for m in v if m.tolist() is not None]
+        
+        df['vive_data'] = df['vive_data'].apply(check_for_none_array) 
 
         row_filt = df['vive_data'].notna()
         df.loc[row_filt, 'vive_data'] = df['vive_data'][row_filt].apply(average_vive_matrix)

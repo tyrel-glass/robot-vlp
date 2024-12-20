@@ -89,7 +89,7 @@ def build_train_data(
 def build_scaler():
     X_limits = np.array([
         [0,0,-180,0,0,-180],
-        [7,7,180,7,7,180]
+        [1,1,180,1,1,180]
     ])
     
     X_scaler = MinMaxScaler()
@@ -143,7 +143,6 @@ def load_data(file_list, include_model_data = False):
             m_lst.append(data['m'])
         else:
             m_lst.append(data['y'])  # just use the real values to fill the model predictions
-
 
     return x_lst, y_lst, m_lst
         

@@ -46,8 +46,8 @@ def build_default_model(model_name, save = False):
     return model
 
 def build_model(hp):
-    n_hidden = hp.Int('n_hidden', min_value = 1, max_value = 10, default = 3)
-    n_neurons = hp.Int('n_neurons', min_value = 5, max_value = 250, default = 50, step = 5)
+    n_hidden = hp.Int('n_hidden', min_value = 1, max_value = 5, default = 3)
+    n_neurons = hp.Int('n_neurons', min_value = 5, max_value = 50, default = 10, step = 5)
     learning_rate = hp.Float('learning_rate', min_value = 4e-4, max_value = 4e-3,default = 9e-4,step = 1e-4)
     optimizer = hp.Choice('optimizer', values = ['adam','sgd'])
     layer_type = hp.Choice('layer_type', values = ['simple', 'lstm', 'gru'])

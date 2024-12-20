@@ -113,6 +113,15 @@ models/vlp/CNC/CNC_vlp_models.pkl: robot_vlp/modeling/gen_cnc_vlp_model.py
 models/default_rnn.keras: robot_vlp/modeling/rnn.py
 	$(PYTHON_INTERPRETER) robot_vlp/modeling/rnn.py default_rnn.keras
 
+
+## Preprocessing of experiment path data
+data/processed/exp_vive_navigated_data.pkl:  robot_vlp/data/preprocessing.py
+	$(PYTHON_INTERPRETER) robot_vlp/data/preprocessing.py exp_vive_navigated_paths exp_vive_navigated_data.pkl --exclude-model-data
+
+
+
+
+
 ## Preprocessing of inital path data
 data/processed/odometer_navigated_data.pkl:  robot_vlp/data/preprocessing.py
 	$(PYTHON_INTERPRETER) robot_vlp/data/preprocessing.py odometer_navigated_paths odometer_navigated_data.pkl --exclude-model-data

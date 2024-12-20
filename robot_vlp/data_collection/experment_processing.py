@@ -23,7 +23,7 @@ def main(
     # ----------------------------------------------
 ):
     
-    files = ['exp01','exp02','exp03','exp04']
+    files = ['exp01','exp02','exp03','exp04', 'exp05']
     # ---- REPLACE THIS WITH YOUR OWN CODE ----
     logger.info("Processing experment dataset")
 
@@ -43,7 +43,9 @@ def main(
             output_filename = f'{filename}_{vlp_name}.pkl'
             output_file = INTERIM_DATA_DIR / 'exp_vive_navigated_paths/' /output_filename
 
-            run_data_dic = process_robot_exp_file(input_file, vlp_model)
+            df = process_robot_exp_file(input_file, vlp_model)
+            run_data_dic = convert_df_to_dic(df)
+      
 
             pickle.dump(run_data_dic, open(output_file , 'wb'))
 
@@ -73,18 +75,13 @@ def process_robot_exp_file(input_file, vlp_model):
 
     df = calculate_encoder_data(df)
 
-    df = df[~df['last_cmd'].str.contains('TURN')] # drop rows after a turn (before move)
-    df.reset_index(inplace = True)
+ 
+
+ 
 
     df = calc_vlp_heading(df)
 
-    targets = ['x_hist', 'y_hist','heading_hist','vlp_x_hist', 'vlp_y_hist','vlp_heading_hist', 'encoder_x_hist','encoder_y_hist', 'encoder_heading_hist']
-    df = df[targets]
-
-
-    data_dic = convert_df_to_dic(df)
-
-    return data_dic
+    return df
 
     
 
@@ -307,8 +304,12 @@ def calculate_encoder_data(input_df):
     return df
 
 def calc_vlp_heading(df):
+    df['vlp_heading_hist'] = np.nan
     # calculate heading by looking at vector from last to cur point
-    df['vlp_heading_hist'] = np.arctan2(df['vlp_x_hist'].diff(1) , df['vlp_y_hist'].diff(1)) *180/np.pi
+    move_row_filter = df['last_cmd'].str.contains('MOVE')
+    df_m = df[move_row_filter]
+
+    df.loc[move_row_filter,'vlp_heading_hist'] = np.arctan2(df_m['vlp_x_hist'].diff(1) , df_m['vlp_y_hist'].diff(1)) *180/np.pi
     
     # populate initial heading 
     df.loc[0,'vlp_heading_hist'] = df['encoder_heading_hist'].iloc[0]

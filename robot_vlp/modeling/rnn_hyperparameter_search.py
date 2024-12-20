@@ -36,7 +36,7 @@ def build_random_search_tuner(directory, project_name, overwrite):
     random_search_tuner = kt.RandomSearch(
         rnn.build_model, 
         objective='val_loss', 
-        max_trials = 1000,
+        max_trials = 100,
         overwrite = overwrite,
         directory = directory, 
         project_name = project_name, 
