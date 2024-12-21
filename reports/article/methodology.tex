@@ -20,6 +20,36 @@ heading adjustment -the robot turns a set angle ALPHA.
 
 Forward drive - the robot takes a step in the heading of size d
 
+The robots state can be completly represented by:
+
+x = \begin{bmatrix}
+    x \\
+    y\\
+    \theta \\
+    \end{bmatrix}
+
+where x, y are the current location of the robot, and theta is the heading.
+
+A robot move comprises of a rotation delta theta, around its current position. 
+And the new heading becomes:
+\[
+\theta' = \theta + \Delta\theta
+\]
+The x and y position remain unchanged due to the rotation being centered on the robot itself.
+
+The rotation matrix expressing this movement is as follows:
+\[
+R_{\Delta\theta} = \begin{bmatrix}
+\cos(\Delta\theta) & -\sin(\Delta\theta) & 0 \\
+\sin(\Delta\theta) & \cos(\Delta\theta) & 0 \\
+0 & 0 & 1
+\end{bmatrix}
+\]
+
+
+
+
+
 To navigate to the target the robot will compute the difference between its heading and the heading towards the current target, and then adjust its heading appropriately.
 Following this it will move along the heading a distance d.
 This sequence of heading adjustment followed by movement will continue until the robot reaches all set target points.
