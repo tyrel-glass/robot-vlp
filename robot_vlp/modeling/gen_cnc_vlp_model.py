@@ -20,8 +20,7 @@ from robot_vlp.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, VLP_MODELS_DIR
 
 model_training_samples_dic = {
     'low_acc':0.1,
-    'med_acc':0.75,
-    'high_acc':0.999999
+    'high_acc':0.75
 }
 app = typer.Typer()
 

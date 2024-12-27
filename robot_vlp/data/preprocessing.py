@@ -88,8 +88,8 @@ def build_train_data(
 
 def build_scaler():
     X_limits = np.array([
-        [0,0,-180,0,0,-180],
-        [1,1,180,1,1,180]
+        [0,0,-180],
+        [1,1,180]
     ])
     
     X_scaler = MinMaxScaler()
@@ -97,7 +97,9 @@ def build_scaler():
 
     return X_scaler
 
-def apply_scaler(X_data, scaler):
+def apply_scaler(X_data, scaler = None):
+    if scaler is None:
+        scaler = build_scaler()
     num_windows, win_len, num_features = X_data.shape
     X_scaled = scaler.transform(X_data.reshape(-1,num_features))
     X_scaled = X_scaled.reshape(num_windows, win_len, num_features)
@@ -184,7 +186,7 @@ def window_data(X,y,m, overlap = 0.5 ,window_len = 10):
     X_lst = []
     y_lst = []
     m_lst = []
-    while end_index < len(X):
+    while end_index <= len(X):
         X_win = X[start_index:end_index]
         y_win = y[start_index:end_index]
         m_win = m[start_index:end_index]
