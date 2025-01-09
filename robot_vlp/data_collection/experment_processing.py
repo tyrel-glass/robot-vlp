@@ -4,6 +4,7 @@ import pickle
 import matplotlib.pyplot as plt
 import robot_vlp.data_collection.communication as c
 
+import robot_vlp.modeling.gen_cnc_vlp_model as vlp
 
 from pathlib import Path
 
@@ -16,8 +17,8 @@ app = typer.Typer()
 
 
 
-enc_per_degree = 11.34
-enc_per_cm = 89.08
+enc_per_degree = 11.34/2
+enc_per_cm = 89.08/2
 
 
 @app.command()
@@ -28,15 +29,16 @@ def main(
     # ----------------------------------------------
 ):
     
-    files = ['exp01','exp02','exp03','exp04', 'exp05']
+    files = ['exp01','exp02','exp03', 'exp07', 'exp04','exp05']
     # ---- REPLACE THIS WITH YOUR OWN CODE ----
     logger.info("Processing experment dataset")
 
     input_file = RAW_DATA_DIR / 'experiments/Robot/' / files[0]
 
 
-    vlp_models_path = VLP_MODELS_DIR / "CNC/CNC_vlp_models.pkl"
-    vlp_models =  pickle.load(open(vlp_models_path, 'rb'))
+    # vlp_models_path = VLP_MODELS_DIR / "CNC/CNC_vlp_models.pkl"
+    # vlp_models =  pickle.load(open(vlp_models_path, 'rb'))
+    vlp_models = vlp.load_vlp_models()
 
 
     output_file = INTERIM_DATA_DIR / 'exp_vive_navigated_paths/' / files[0].split('.')[0] /'.pkl'
@@ -77,14 +79,15 @@ def process_robot_exp_file(input_file, vlp_model):
     # parse the move cmds before dropping the move rows
     def parse_last_turn(cmd):
         if 'TURN:' in cmd:
-            return int(float(cmd.split('TURN:')[1]))
+            return -int(float(cmd.split('TURN:')[1]))
         else:
             return np.nan
     
-    df['encoder_heading_change'] = df['last_cmd'].apply(parse_last_turn)
+    df['encoder_heading_change_step'] = df['last_cmd'].apply(parse_last_turn)
     no_turn_filt =  df['last_cmd'].str.contains('MOVE:') & df['last_cmd'].shift(1).str.contains('MOVE:')
-    df.loc[no_turn_filt, 'encoder_heading_change'] = 0
-    df['encoder_heading_change'] = df['encoder_heading_change'].ffill() / enc_per_degree
+    df.loc[no_turn_filt, 'encoder_heading_change_step'] = 0
+    df['encoder_heading_change_step'] = df['encoder_heading_change_step'].ffill() 
+    df['encoder_heading_change'] = df['encoder_heading_change_step'] / enc_per_degree
 
 
     #======================== Drop the move rows ============================
@@ -174,36 +177,48 @@ def convert_df_to_dic(df):
 
 # ------------------------------------------------ Functions to process VLP data -------------------------------------
 
-def plot_surface(df):
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
 
+def plot_surface_irregular(df, cmap='viridis', grid_resolution=100):
     # Creating 4 subplots for each target peak column
     fig = plt.figure(figsize=(16, 12))
+    target_peaks = ['L1', 'L2', 'L3', 'L4']
 
-    target_peaks = ['peak_1000Hz', 'peak_3000Hz', 'peak_5000Hz', 'peak_7000Hz']
+    # Generate a regular grid for interpolation
+    grid_x, grid_y = np.meshgrid(
+        np.linspace(df["cnc_x"].min(), df["cnc_x"].max(), grid_resolution),
+        np.linspace(df["cnc_y"].min(), df["cnc_y"].max(), grid_resolution)
+    )
 
-    # Example additional data (add to match the structure of your actual dataframe)
-
-
-    # Iterate through each target peak column to create a subplot
     for i, peak in enumerate(target_peaks):
-        ax = fig.add_subplot(2, 2, i + 1, projection='3d')  # 2x2 grid of subplots
+        ax = fig.add_subplot(2, 2, i + 1, projection='3d')
 
-        # Prepare the grid for surface plotting
-        X, Y = np.meshgrid(df["cnc_x"].unique(), df["cnc_y"].unique())
-        Z = df.pivot_table(index='cnc_y', columns='cnc_x', values=peak).values
+        # Interpolate Z values onto the regular grid
+        grid_z = griddata(
+            points=(df["cnc_x"], df["cnc_y"]),
+            values=df[peak],
+            xi=(grid_x, grid_y),
+            method='linear'
+        )
 
         # Plot the surface
-        ax.plot_surface(X, Y, Z, cmap='viridis')
+        surf = ax.plot_surface(grid_x, grid_y, grid_z, cmap=cmap)
 
         # Label the axes
-        ax.set_title(f'{peak}')
+        ax.set_title(f'{peak} Surface Plot')
         ax.set_xlabel('X Location')
         ax.set_ylabel('Y Location')
         ax.set_zlabel(peak)
 
+        # Add color bar for reference
+        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10)
+
     # Adjust layout and show the plot
     plt.tight_layout()
     plt.show()
+
 
 
 
@@ -235,12 +250,6 @@ def calc_encoder_xy_hist(df):
     df['encoder_y_hist'] = np.array(dy_sum) + df['y_hist'].iloc[0]
 
     return df
-
-
-
-
-
-
 
 if __name__ == "__main__":
     app()

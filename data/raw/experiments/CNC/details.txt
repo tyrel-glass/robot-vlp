@@ -1,2 +1,5 @@
 cnc_fingerprint_01
 25mm distance, elevated platform, 15k,17k,20k,23k
+
+cnc_fingerprint_02
+40mm distance, with uniform random variation of +/- 20mm, elevated platform, 15k,17k,20k,23k. 

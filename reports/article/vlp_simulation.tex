@@ -1,0 +1,28 @@
+%-------------------------- VLP Dataset ------------------------
+\subsubsection{VLP dataset}
+This section utilises the authors previous work in collecting a large, real world data set of VLP readings. 
+The dataset contains a fingerprint of 7344 locations where VLP reading were taken from 11 luminaries with ground truth provided by a the HTC vive tacking system. 
+The area covered by this dataset was 6.3m x 6.9m office lobby environment.
+
+\begin{figure}[h!]
+    \includegraphics[scale = 0.3]{{figures/robot_room_setup}}
+    \caption{VLP dataset setup}
+    \label{fig:acc_grid}
+    \end{figure}
+
+
+The paper simulates a differential wheeled robot within the VLP fingerprint dataset. 
+The simulation keeps track of the current location of the robot, and when a VLP reading is required will find the closest datapoint available to the current co-ordinates, and use the VLP RSS vector at that point. 
+This introduces error into the VLP system, however the mean distance from a any point randomly chosen within the area to a VLP reading was 36mm, with the max being 80mm which is an order of magnitude lower than the typical performance of the VLP localisation algorithm used. 
+Several different methods exist for converting the RSS signals into location co-ordinates.
+
+When a new position estimate is required, the VLP positioning engine takes a signal from the photodiode which has been filtered and digitised by an ADC at a sample rate of 20000 hz.
+The digital signals is then split into windows of size 1024, and then passed through an DFFT algorithm to extract the RSS components at the frequencies associated with each VLP luminare. 
+This vector of RSS readings to stationary luminars is then used to derive a position estimate. 
+VLP model
+
+For this work a simple MLP regressor was trained that had an input neuron for each RSS reading, and two outputs, the x and y co-ordinates of the location estimate. 
+In order to generate models with different accuracy, the amount of data used for training the model was varied. 3 different models were trained:
+
+
+\input{../tables/vlp_performance}

@@ -1,45 +1,76 @@
 /*
-  =======================
-  Serial Command Summary
-  =======================
-  
-  Motion Commands:
-  ----------------
-  MOVE:<encoder_counts>
-    - Moves the system forward by the specified number of encoder counts.
-    - Example: MOVE:1000 (moves forward 1000 encoder counts).
+===============================================================================
+                              ROBOT CONTROL SYSTEM
+===============================================================================
+  This program controls a two-motor robotic platform using encoder feedback 
+  to provide precise movement. Serial commands are used to control the robot, 
+  with support for forward movement, rotations, PID tuning, and debug options.
 
-  TURN:<encoder_counts>
-    - Rotates the system by the specified number of encoder counts.
-    - Positive values turn clockwise, negative values turn counterclockwise.
-    - Example: TURN:500 (rotates 500 encoder counts clockwise).
-              TURN:-500 (rotates 500 encoder counts counterclockwise).
+------------------------------------------------------------------------------
+                              SERIAL COMMANDS
+------------------------------------------------------------------------------
+1. Movement Commands:
+   - MOVE:<encoder_counts>
+     Moves the robot forward for the specified encoder count distance.
 
-  STOP
-    - Stops the motors immediately.
-    - Example: STOP
+   - TURN:<encoder_counts>
+     Rotates the robot by the specified encoder count distance.
 
-  Parameter Configuration Commands:
-  ---------------------------------
-  SET:KP:<value>
-    - Updates the proportional constant (Kp) used in feedback control.
-    - Example: SET:KP:2.5 (sets Kp to 2.5).
+   - FORWARD:<time_in_ms>
+     Drives both motors forward at a constant power for the specified time 
+     in milliseconds. Power is determined by the global variable `forwardPower`.
 
-  SET:TS:<value>
-    - Updates the target speed for the motors in encoder counts per second.
-    - Example: SET:TS:100.0 (sets target speed to 100 encoder counts per second).
+   - ROTATE:<time_in_ms>
+     Rotates the robot in place. Positive values rotate clockwise for the 
+     specified time in milliseconds. Negative values rotate counterclockwise. 
+     Power is determined by the global variable `rotatePower`.
 
-  Debugging Commands:
-  -------------------
-  DEBUG:ON
-    - Enables real-time debugging output.
-    - Sends the following data in a comma-separated format:
-      encoderCountA,encoderCountB,speedA,speedB,pwmA,pwmB
-    - Example Output: 100,105,12.5,11.8,120,125.
+   - STOP
+     Stops both motors immediately.
 
-  DEBUG:OFF
-    - Disables real-time debugging output.
+2. Setting Parameters:
+   - SET:KP:<value>
+     Updates the proportional constant `Kp` used in speed control.
+
+   - SET:TS:<value>
+     Updates the target speed for the PID controller in encoder counts 
+     per second.
+
+   - SET:FPOWER:<value>
+     Updates the forward driving power (PWM) for the `FORWARD` command.
+
+   - SET:RPOWER:<value>
+     Updates the rotation power (PWM) for the `ROTATE` command.
+
+3. Debugging:
+   - DEBUG:ON
+     Enables debugging mode, providing encoder and speed updates on Serial.
+
+   - DEBUG:OFF
+     Disables debugging mode.
+
+------------------------------------------------------------------------------
+                             FUNCTIONALITY OVERVIEW
+------------------------------------------------------------------------------
+1. Encoder Feedback:
+   The program tracks encoder counts for both motors to provide real-time 
+   feedback for precise movement.
+
+2. PID Speed Control:
+   Implements a simple proportional control loop to maintain consistent 
+   motor speeds based on the target speed.
+
+3. Motor States:
+   Motors can be controlled independently for movement (both forward and 
+   backward), as well as for rotational commands.
+
+4. Adjustable PWM Power:
+   Global power values for forward motion (`forwardPower`) and rotation 
+   (`rotatePower`) are adjustable at runtime via the `SET` commands.
+
+------------------------------------------------------------------------------
 */
+
 
 #define LED_PIN 13
 
@@ -69,6 +100,8 @@ float speedB = 0;                // Speed for Motor B (encoder counts per second
 int pwmA = 50;                  // PWM for Motor A
 int pwmB = 50;                  // PWM for Motor B
 int pwm = 50;                   // Base motor speed
+int forwardPower = 50;           // Default power for FORWARD command
+int rotatePower = 50;            // Default power for ROTATE command
 float Kp = 0.1;                  // Proportional constant
 float targetSpeed = 200.0;       // Target speed in encoder counts per second
 bool debugEnabled = false;       // Debug flag
@@ -175,6 +208,28 @@ void processCommand(String command) {
     targetSpeed = command.substring(7).toFloat();
     Serial.print("Updated targetSpeed to: ");
     Serial.println(targetSpeed);
+  } else if (command.startsWith("SET:FPOWER:")) {
+    forwardPower = command.substring(11).toInt();
+    Serial.print("Updated forwardPower to: ");
+    Serial.println(forwardPower);
+  } else if (command.startsWith("FORWARD:")) {
+    int time = command.substring(8).toInt();
+    Serial.print("Driving forward for ");
+    Serial.print(time);
+    Serial.println(" ms...");
+    forward(time);
+    Serial.println("Forward done");
+  } else if (command.startsWith("SET:RPOWER:")) {
+    rotatePower = command.substring(11).toInt();
+    Serial.print("Updated rotatePower to: ");
+    Serial.println(rotatePower);
+  } else if (command.startsWith("ROTATE:")) {
+    int time = command.substring(7).toInt();
+    Serial.print("Rotating for ");
+    Serial.print(time);
+    Serial.println(" ms...");
+    timedRotate(time);
+    Serial.println("Rotate done");
   } else if (command == "DEBUG:ON") {
     debugEnabled = true;
     Serial.println("Debugging enabled.");
@@ -187,6 +242,43 @@ void processCommand(String command) {
   } else {
     Serial.println("Unknown command.");
   }
+}
+
+//=========================================================================
+// FORWARD FUNCTION
+//=========================================================================
+void forward(int timeInMs) {
+  setMotorState(1, forwardPower, 0); // Motor A forward
+  setMotorState(2, forwardPower, 0); // Motor B forward
+
+  delay(timeInMs); // Wait for the specified time
+
+  stop(); // Stop motors after delay
+}
+
+
+
+
+
+
+
+//=========================================================================
+// TIMED ROTATE FUNCTION
+//=========================================================================
+void timedRotate(int timeInMs) {
+  if (timeInMs > 0) {
+    // Clockwise rotation
+    setMotorState(1, rotatePower, 1); // Motor A forward
+    setMotorState(2, rotatePower, 0); // Motor B backward
+  } else {
+    // Counterclockwise rotation
+    setMotorState(1, rotatePower, 0); // Motor A backward
+    setMotorState(2, rotatePower, 1); // Motor B forward
+  }
+
+  delay(abs(timeInMs)); // Wait for the specified time
+
+  stop(); // Stop motors after delay
 }
 
 //=========================================================================
@@ -265,8 +357,9 @@ void adjustPWM(bool isTurning = false) {
   pwmB += Kp * speedErrorB;
 
   // Constrain PWM values to a safe range
-  pwmA = constrain(pwmA, 0, 80);
-  pwmB = constrain(pwmB, 0, 80);
+  pwmA = constrain(pwmA, 0, 100);
+  pwmB = constrain(pwmB, 0, 100);
+
 
   // Apply PWM values to the motors
   analogWrite(PWMA, pwmA);
@@ -301,7 +394,7 @@ void move(int targetCounts) {
       motorAStopped = true;
     }
 
-    // Stop Motor B if it reaches its target
+    // Stop Motor B if it reaches its targetF
     if (!motorBStopped && (currentCountB >= targetCounts)) {
       setMotorState(2, 0, 0); // Stop Motor B
       motorBStopped = true;
@@ -379,6 +472,7 @@ void zeroEncoders() {
 }
 
 
+//=========================================================================
 void setMotorState(int motor, int speed, int direction) {
   digitalWrite(STBY, HIGH); // Disable standby
 
