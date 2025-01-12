@@ -3,7 +3,7 @@ import socket
 import time
 import serial
 import time
-# import robot_vlp.data.triad_openvr.triad_openvr as vr
+import robot_vlp.data.triad_openvr.triad_openvr as vr
 import pandas as pd
 import numpy as np
 import csv
@@ -89,7 +89,7 @@ def calc_pks(fft, width = 8):
 
 
 def read_vlp(max_retries=3, timeout=3):
-    ESP32_IP="192.168.10.100"  #old board
+    ESP32_IP="192.168.10.101"  #old board
     # ESP32_IP="192.168.10.104"  #new board
     ESP32_PORT = 8080
     retry_count = 0
@@ -535,8 +535,8 @@ def process_move_wifi(cmd, log_file, vive, transformer = None, vlp_read = True):
     nano_response = send_command_to_nano('')
     vive_data = read_vive(vive)
     if vlp_read:
-        # vlp_data = c.take_mean_fft(3)
-        vlp_data = read_n_vlp(10)
+
+        vlp_data = read_n_vlp(3)
     else:
         vlp_data = None
     vive_robot_log_write(vive_data,vlp_data, cmd = cmd, log_file = log_file)
