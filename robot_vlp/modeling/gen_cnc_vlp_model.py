@@ -6,6 +6,7 @@ from tqdm import tqdm
 
 import os
 import pickle
+from keras.models import load_model
 from sklearn.neural_network import MLPRegressor
 from sklearn.preprocessing import StandardScaler
 import pandas as pd
@@ -18,54 +19,158 @@ import robot_vlp.data_collection.communication as c
 
 from robot_vlp.config import PROCESSED_DATA_DIR, RAW_DATA_DIR, VLP_MODELS_DIR
 
-model_training_samples_dic = {
-    'low_acc':0.1,
-    'med_acc':0.75,
-    'high_acc':0.999999
-}
+from keras.losses import MeanSquaredError
+
+from keras.models import Sequential
+from keras.layers import Dense, Dropout
+from keras.optimizers import Adam
+from keras.callbacks import EarlyStopping
+from sklearn.preprocessing import StandardScaler
+from keras.callbacks import LearningRateScheduler
+from keras import regularizers
+from tensorflow.keras.layers import BatchNormalization
+
+
+
+vlp_dataset_path  = RAW_DATA_DIR / "experiments/CNC"
+output_path  = VLP_MODELS_DIR / 'CNC/'
+
+models_filename = output_path / "CNC_vlp_models.pkl"
+
 app = typer.Typer()
 
 @app.command()
 def main(
-    vlp_dataset_path: Path = RAW_DATA_DIR / "experiments/CNC/cnc_fingerprint_01.csv",
-    output_path: Path = VLP_MODELS_DIR / 'CNC/'
+
 ):
     # -----------------------------------------
     logger.info("Reading vlp dataset")
 
-    df= pd.read_csv(vlp_dataset_path, delimiter = '|')
-    df = c.process_cnc(df)
-    df = c.process_vlp(df)
+    train_df = pd.read_csv(vlp_dataset_path/'cnc_fingerprint_01.csv', delimiter = '|')
+    train_df = c.process_cnc(train_df)
+    train_df = c.process_vlp(train_df)
 
-    model_dic = {}
-    for model_name, train_size in model_training_samples_dic.items():
-        model_dic[model_name] = build_model(df= df, train_size = train_size)
+    valid_df = pd.read_csv(vlp_dataset_path/'cnc_fingerprint_02.csv', delimiter = '|')
+    valid_df = c.process_cnc(valid_df)
+    valid_df = c.process_vlp(valid_df)
 
-    models_filename = output_path / "CNC_vlp_models.pkl"
+
+    X_train = train_df[['L1', 'L2', 'L3', 'L4']]
+    y_train = train_df[['cnc_x', 'cnc_y']]
+
+    X_valid = valid_df[['L1', 'L2', 'L3', 'L4']]
+    y_valid = valid_df[['cnc_x', 'cnc_y']]
+
+    model_high_acc_path = "high_acc_model.keras"
+    mlp_high_acc_model, mlp_high_acc_scaler  = build_and_train_model(X_train, y_train, X_valid, y_valid,partial_data=False)
+    mlp_high_acc_model.save(output_path / model_high_acc_path, save_format = 'tf' )
+    
+    model_low_acc_path = "low_acc_model.keras"
+    mlp_low_acc_model, mlp_low_acc_scaler = build_and_train_model(X_train, y_train, X_valid, y_valid,partial_data=True)
+    mlp_low_acc_model.save(output_path / model_low_acc_path, save_format = 'tf')
+
+    model_dic = {
+        'low_acc': {'scaler': mlp_low_acc_scaler, 'model_path': model_low_acc_path},
+        'high_acc': {'scaler': mlp_high_acc_scaler, 'model_path': model_high_acc_path}
+    }
+
     pickle.dump(model_dic, open(models_filename, "wb"))
+
     logger.success("Created VLP models")
     # -----------------------------------------
 
 
-def build_model(df, train_size: float):
-    X = df[['L1', 'L2', 'L3', 'L4']]
-    y = df[['cnc_x', 'cnc_y']]
+def build_and_train_model(X_train, y_train, X_valid, y_valid,partial_data = False):
 
-    X_train, X_test, y_train, y_test = train_test_split(
-        X, y, train_size=train_size, random_state=42
+    scaler = StandardScaler()
+    X_train_scaled = scaler.fit_transform(X_train)
+    X_valid_scaled = scaler.transform(X_valid)
+
+    # Define an exponential decay schedule
+    def lr_schedule(epoch, initial_lr=0.01, decay_rate=0.995):
+        return initial_lr * (decay_rate ** epoch)
+    # Define the Learning Rate Scheduler
+    lr_scheduler = LearningRateScheduler(lr_schedule)
+
+    # Build a simple Keras model
+    model = Sequential([
+        Dense(200, activation='relu', input_dim=X_train_scaled.shape[1],kernel_regularizer=regularizers.l2(0.001)),
+        BatchNormalization(),
+        Dense(50, activation='relu',kernel_regularizer=regularizers.l2(0.001)),  # You can customize more layers as needed
+        BatchNormalization(),
+        Dropout(0.1),
+        Dense(100, activation='relu',kernel_regularizer=regularizers.l2(0.001)),  # You can customize more layers as needed
+        BatchNormalization(),
+        Dropout(0.1),
+        Dense(2, activation='linear')  # Output layer for 2 regression outputs
+    ])
+    optimizer = Adam(learning_rate=0.01)
+    model.compile(optimizer=optimizer, loss=MeanSquaredError(), metrics=[MeanSquaredError()])
+
+    # Configure early stopping
+    early_stopping = EarlyStopping(
+        monitor='val_loss', patience=30, restore_best_weights=True, verbose=1
     )
 
-    regr = Pipeline([("scaler", StandardScaler()), ("mlp", MLPRegressor(max_iter=10000))])
-    regr.fit(X_train.values, y_train.values)
+    if partial_data == False:
+        history = model.fit(
+            X_train_scaled, y_train,
+            validation_data=(X_valid_scaled, y_valid),
+            epochs=10000,
+            batch_size=32,
+            callbacks=[early_stopping, lr_scheduler],
+            verbose=1
+        )
+    else:
+        X_train_partial, _, y_train_partial, _ = train_test_split(
+        X_train_scaled, y_train, train_size=0.27, random_state=42
+            )
+        history = model.fit(
+            X_train_partial, y_train_partial,
+            validation_data=(X_valid_scaled, y_valid),
+            epochs=10000,
+            batch_size=32,
+            callbacks=[early_stopping, lr_scheduler],
+            verbose=1
+        )
 
-    y_pre = regr.predict(X_test.values)
-    errs = np.sqrt(
-        np.square(y_pre[:, 0] - y_test.values[:, 0]) + np.square(y_pre[:, 1] - y_test.values[:, 1])
-    )
-    logger.info("mean error of: " + str(errs.mean()) + str(train_size)+" training samples")
+    return  model, scaler
 
-    return regr
+# Create a pipeline-like return object
+class CustomPipeline:
+    def __init__(self, scaler, model):
+        self.scaler = scaler
+        self.model = model
 
+    def predict(self, X):
+        X_scaled = self.scaler.transform(X)
+        return self.model.predict(X_scaled)
+
+
+def load_vlp_models(models_filename = models_filename, output_path = output_path):
+
+    # Ensure paths are Path objects
+    models_filename = Path(models_filename)
+    output_path = Path(output_path)
+
+    # Load the model dictionary
+    try:
+        model_dic = pickle.load(open(models_filename, "rb"))
+    except Exception as e:
+        raise ValueError(f"Error loading model dictionary from {models_filename}: {e}")
+
+    # Reconstruct the pipelines
+    pipelines = {}
+    for key, components in model_dic.items():
+        try:
+            scaler = components['scaler']
+            model_path = output_path / components['model_path']
+            model = load_model(model_path)
+            pipelines[key] = CustomPipeline(scaler, model)
+        except Exception as e:
+            raise ValueError(f"Error reconstructing pipeline for '{key}': {e}")
+
+    return pipelines
 
 
 if __name__ == "__main__":

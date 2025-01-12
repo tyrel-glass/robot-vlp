@@ -48,7 +48,7 @@ def build_default_model(model_name, save = False):
 def build_model(hp):
     n_hidden = hp.Int('n_hidden', min_value = 1, max_value = 5, default = 3)
     n_neurons = hp.Int('n_neurons', min_value = 5, max_value = 50, default = 10, step = 5)
-    learning_rate = hp.Float('learning_rate', min_value = 4e-4, max_value = 4e-3,default = 9e-4,step = 1e-4)
+    learning_rate = hp.Float('learning_rate', min_value = 1e-4, max_value = 4e-3,default = 1e-4,step = 1e-4)
     optimizer = hp.Choice('optimizer', values = ['adam','sgd'])
     layer_type = hp.Choice('layer_type', values = ['simple', 'lstm', 'gru'])
 
@@ -57,7 +57,7 @@ def build_model(hp):
     else:
         optimizer =  tf.keras.optimizers.Adam(learning_rate=learning_rate)
 
-    input_ = keras.layers.Input(shape=(None, 6))
+    input_ = keras.layers.Input(shape=(None, 3))
 
     next_input = input_
 
@@ -79,7 +79,7 @@ def build_model(hp):
 
     model.compile(optimizer=optimizer,
             loss = ['mse',ang_loss_fn],
-                loss_weights = [1., 1.],
+                loss_weights = [1., 10000.],
             )
     return model
 

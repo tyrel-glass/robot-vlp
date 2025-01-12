@@ -115,3 +115,8 @@ def nav_to_point():
 
         if dist_to_target < 0.05:
             break
+
+
+
+exp 08
+new motor. random points 0.1m apart (edges still bumping)
