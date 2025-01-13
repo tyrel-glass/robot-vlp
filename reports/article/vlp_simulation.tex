@@ -26,3 +26,17 @@ In order to generate models with different accuracy, the amount of data used for
 
 
 \input{../tables/vlp_performance}
+
+
+This section used a simulated robot that operated within a real-world VLP dataset. 
+The simulation was a simple robot that could turn on the spot, and take a step forward.
+To simulate real-world performance, errors were introduced for both turning and stepping.
+
+When turning an angle: $\theta$ an error term of $e_{turn}$ is added. Where $e_{turn}$ is a value sampled from a continuous uniform ditribution centerd at $0$ with width $2\times err_{setting}$. 
+Thus a intended turn of $\theta$ results in a turn uniformly sampled from the interval $(\theta - \theta \times err_{setting}, \theta + \theta \times err_{setting})$
+
+
+Likewise, each time the robot steps a distance $d$, an error term of $e_{step}$ step is added.
+Where $e_{step}$ is a value sampled from a continuous uniform ditribution centerd at 0 with width $2\times step_{error}$. 
+Both errors are proportional to the total movement, so that small movements will have less absoulue error.
+

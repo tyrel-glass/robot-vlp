@@ -17,8 +17,8 @@ app = typer.Typer()
 
 
 
-enc_per_degree = 11.34/2
-enc_per_cm = 89.08/2
+enc_per_degree = 5.2840845170669475  # old robot is  11.34
+enc_per_cm =   39.41498872518428 # old robot is 89.08
 
 
 @app.command()
@@ -103,9 +103,19 @@ def process_robot_exp_file(input_file, vlp_model):
     # predict new vlp locations
     df[['vlp_x_hist', 'vlp_y_hist']] = vlp_model.predict(df[['L1', 'L2', 'L3', 'L4']].values)/1000 #cnc in mm
 
+    # ======================================================================
+    # ==============================  TESTING   ======================= 
+    # ======================================================================
+    # ======================================================================
+    df[['vlp_x_hist_test', 'vlp_y_hist_test']] = vlp_model.predict(df[['L1_test', 'L2_test', 'L3_test', 'L4_test']].values)/1000 #cnc in mm
+    # ======================================================================
+    # ======================================================================
+
+
+    
     # map between robot center and vive tracker
-    df['x_hist'] = df['vive_x'] +0.067*np.sin(df['vive_yaw']/180*np.pi) 
-    df['y_hist'] = df['vive_z'] +0.067*np.cos(df['vive_yaw']/180*np.pi) 
+    df['x_hist'] = df['vive_x'] +0.07*np.sin(df['vive_yaw']/180*np.pi) 
+    df['y_hist'] = df['vive_z'] +0.07*np.cos(df['vive_yaw']/180*np.pi) 
 
     # take heading from vive (offset by 180 degrees)
     df['heading_hist'] = [c.normalize_angle(a) for a in (df['vive_yaw'] + 180)]
@@ -133,7 +143,8 @@ def process_robot_exp_file(input_file, vlp_model):
             return int(float(cmd.split('MOVE:')[1]))
         else:
             return np.nan
-    df['encoder_location_change'] = df['last_cmd'].apply(parse_last_move) / enc_per_cm /100
+    df['encoder_location_change_step'] = df['last_cmd'].apply(parse_last_move) 
+    df['encoder_location_change'] = df['encoder_location_change_step']/ enc_per_cm /100
 
     df['vive_location_change'] = np.sqrt(np.square(df['x_hist'].diff(1)) + np.square(df['y_hist'].diff(1)))
     

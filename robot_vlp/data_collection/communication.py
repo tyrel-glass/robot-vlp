@@ -26,7 +26,16 @@ def process_vlp(df):
     df.loc[:,'pks'] = df['vlp_data'].apply(lambda v: [np.array(calc_pks(FFT_win(data)[0]))for data in v])
 
     df.loc[:,['L1', 'L2', 'L3', 'L4']] = np.array(df['pks'].apply(lambda v: np.apply_along_axis(average_vlp_readings, 0,np.array(v))).to_list())
-    
+
+    # ======================================================================
+    # ==============================  TESTING   ======================= 
+    # ======================================================================
+    # ======================================================================
+    df.loc[:,['L1_test', 'L2_test', 'L3_test', 'L4_test']] = np.array(df['pks'].apply(lambda v: np.apply_along_axis(np.median, 0,np.array(v[:1]))).to_list())
+    # ======================================================================
+    # ======================================================================
+
+
     return df
 
 def FFT_win(clip):

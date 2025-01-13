@@ -3,82 +3,78 @@
 
 
 %-------------------------- Navigation ------------------------
-\subsection{Robot navigation}
-For simplicity the robots locomotion is restricted to moving forward (both wheels set to same speed and duration), and turning on the spot where both wheels turn at the same speed in opposite directions so that the location of the robot does not change. 
+\subsection{Robot Movement}
 
-A basic approach to navigation is taken in which the objective is for the robot to reach a series of locations P1, P2, Pn. 
-Realistically the robot will never reach an exact point, therefore a threshold dt is specified, as being a distance that if the robot is closer to the target then, essentially means that robot has hit the objective.
+For simplicity, the robot's locomotion is restricted to two types of movement:
+\begin{itemize}
+    \item \textbf{Forward motion}: Both wheels turn at the same speed and for the same duration, causing the robot to move straight.
+    \item \textbf{In-place rotation}: Both wheels turn at the same speed but in opposite directions, allowing the robot to rotate around its center without changing its location.
+\end{itemize}
 
-To move towards the current location target, a two step process is repeated. :
+The navigation objective is for the robot to sequentially reach a series of target points \( P_1, P_2, \dots, P_n \). Realistically, the robot will not reach an exact target point due to physical limitations. Therefore, a threshold distance \( d_t \) is specified. If the robot is within \( d_t \) of the target, it is considered to have reached the target.
 
-heading adjustment -the robot turns a set angle ALPHA.
+To move towards the current target location, the robot follows a two-step iterative process:
 
-Forward drive - the robot takes a step in the heading of size d
+\begin{itemize}
+    \item \textbf{Heading Adjustment}: The robot turns by a set angle \( \alpha \) towards the target.
+    \item \textbf{Forward Motion}: The robot moves forward by a distance \( d \) along the adjusted heading.
+\end{itemize}
 
-The robots state can be completly represented by:
+This process repeats until the robot is within the threshold distance \( d_t \) of all target points.
 
-x = \begin{bmatrix}
+The robot's state is represented by the vector:
+\[
+\mathbf{x} = \begin{bmatrix}
     x \\
-    y\\
+    y \\
     \theta \\
-    \end{bmatrix}
+\end{bmatrix}
+\]
+where \( x \) and \( y \) are the robot's current location, and \( \theta \) is its heading (orientation).
 
-where x, y are the current location of the robot, and theta is the heading.
-
-A robot move comprises of a rotation delta theta, around its current position. 
-And the new heading becomes:
+### In-Place Rotation
+A robot rotation comprises a heading change \( \Delta\theta \), while its position \( x \) and \( y \) remain unchanged. The new heading becomes:
 \[
 \theta' = \theta + \Delta\theta
 \]
-The x and y position remain unchanged due to the rotation being centered on the robot itself.
 
-The rotation matrix expressing this movement is as follows:
+The rotation matrix expressing this movement is:
 \[
 R_{\Delta\theta} = \begin{bmatrix}
-\cos(\Delta\theta) & -\sin(\Delta\theta) & 0 \\
-\sin(\Delta\theta) & \cos(\Delta\theta) & 0 \\
-0 & 0 & 1
+    \cos(\Delta\theta) & -\sin(\Delta\theta) & 0 \\
+    \sin(\Delta\theta) & \cos(\Delta\theta) & 0 \\
+    0 & 0 & 1
 \end{bmatrix}
 \]
 
+### Navigation Process
+To navigate to a target, the robot calculates the difference between its current heading and the heading towards the target. The navigation steps are as follows:
 
+\begin{itemize}
+    \item Compute the heading difference \( \Delta\theta \) between the current heading \( \theta \) and the heading to the target.
+    \item Adjust the heading in steps of \( \alpha \) until the desired heading is approximately reached.
+    \item Move forward by a distance \( d \) in the current heading direction.
+    \item Repeat this process until the robot is within the threshold distance \( d_t \) of the target.
+\end{itemize}
 
-
-
-To navigate to the target the robot will compute the difference between its heading and the heading towards the current target, and then adjust its heading appropriately.
-Following this it will move along the heading a distance d.
-This sequence of heading adjustment followed by movement will continue until the robot reaches all set target points.
+This sequence of heading adjustment followed by forward motion is repeated for each target point in the series.
 
 \begin{figure}[h!]
-    \includegraphics[scale = 0.3]{{figures/turn_step}}
-    \caption{Path planning steps:
-    Calculate difference between current heading and target.
-    Adjust current heading to target
-    Take step in new heading direction
-    Repeat}
+    \centering
+    \includegraphics[scale=0.3]{figures/turn_step}
+    \caption{Path planning steps: \textbf{(1)} Calculate the difference between the current heading and the target. \textbf{(2)} Adjust the heading. \textbf{(3)} Take a step in the adjusted heading direction. \textbf{(4)} Repeat until reaching the target.}
     \label{fig:turn_step}
-    \end{figure}
+\end{figure}
 
-This section used a simulated robot that operated within a real-world VLP dataset. 
-The simulation was a simple robot that could turn on the spot, and take a step forward.
-To simulate real-world performance, errors were introduced for both turning and stepping.
-
-When turning an angle: $\theta$ an error term of $e_{turn}$ is added. Where $e_{turn}$ is a value sampled from a continuous uniform ditribution centerd at $0$ with width $2\times err_{setting}$. 
-Thus a intended turn of $\theta$ results in a turn uniformly sampled from the interval $(\theta - \theta \times err_{setting}, \theta + \theta \times err_{setting})$
-
-
-Likewise, each time the robot steps a distance $d$, an error term of $e_{step}$ step is added.
-Where $e_{step}$ is a value sampled from a continuous uniform ditribution centerd at 0 with width $2\times step_{error}$. 
-Both errors are proportional to the total movement, so that small movements will have less absoulue error.
 
 
 
 %-------------------------- GENERATED PATHS ------------------------
 \subsubsection{Generated paths}
-The inital traing dataset is created by the simulated robot tracing various paths using odometry with simulated errors to navigate. 
+The initial training dataset is created by the simulated robot tracing various paths using odometry with simulated errors to navigate. 
 The navigation targets are created by specifying a circle with radius $r$, and then specifying a number of points; $n$ where $2<=n<12$ which are then equally spaced around the circle. 
 The points are then assigned to be reached clockwise, anticlockwise, or randomly (where the list of targets is shuffled). 
-By specifying a range of values for $r$, with a range of $n$, three different ordering methods, and (number or reps = 4) reppititions for each path,  (number of paths = 900) different navigation paths are generated.
+By specifying a range of values for $r$, with a range of $n$, three different ordering methods, and (number of reps = 4) repetitions for each path,  (number of paths = 900) different navigation paths are generated.
 
 
 \begin{tabular}{ll}
@@ -97,23 +93,23 @@ Number of times the same path is repeated & 4 \\
 
 
 \begin{figure}[h!]
-\includegraphics[scale = 0.7]{{../figures/nav_points_ex}}
+\includegraphics[scale = 0.7]{../figures/nav_points_ex}
 \caption{Example of three different navigation paths}
 \label{fig:nav_points_ex}
 \end{figure}
 
 %-------------------------- Robot performance ------------------------
 \textbf{Robot navigation performance}
-To naivgate to each of the target points the simulated robot uses odometry alone. 
-From the robots perspective the path it traces out is error free.
-To naivigate to a point, the robot will compare its bearing to that of the target, make a heading correction and continue to step in the same direction until it thinks it hits its target. 
+To navigate to each of the target points the simulated robot uses odometry alone. 
+From the robot's perspective the path it traces out is error free.
+To navigate to a point, the robot will compare its bearing to that of the target, make a heading correction and continue to step in the same direction until it thinks it hits its target. 
 The errors in the encoder lead the actual path traced by the robot to deviate from the ideal.
-The robot is set to repeat the series of target points untill the position errors accumulate to the point at which the actual co-ordiante of the robot reaches the limit of the VLP dataset.
+The robot is set to repeat the series of target points until the position errors accumulate to the point at which the actual coordinate of the robot reaches the limit of the VLP dataset.
 The level of encoder error has a major impact on navigation performance, as can be seen by figure x.
 
 
 \begin{figure}[h!]
-\includegraphics[scale = 0.5]{{../figures/encoder_drift}}
+\includegraphics[scale = 0.5]{../figures/encoder_drift}
 \caption{Demonstration of encoder error}
 \label{fig:encoder_drift}
 \end{figure}
@@ -121,21 +117,21 @@ The level of encoder error has a major impact on navigation performance, as can 
 The level of VLP error also has a large impact on positioning performance.
 
 \begin{figure}[h!]
-    \includegraphics[scale = 0.5]{{../figures/vlp_drift}}
+    \includegraphics[scale = 0.5]{../figures/vlp_drift}
     \caption{Demonstration of VLP error (note: this data need to be recalculated)}
-    \label{fig:vlp_drift}
+    \label{fig:vlp_drift_1}
     \end{figure}
 
-%-------------------------- Dataset preperation ------------------------
-\subsubsection{Dataset preperation}
+%-------------------------- Dataset preparation ------------------------
+\subsubsection{Dataset preparation}
 The paths traced by the simulated robot during a simulation run enable the creation of a dataset suitable for training the navigation model. 
-The targets (or labels) for the dataset are the resulting $x$ and $y$ co-ordinates, along with the heading $\alpha$ at the end of each movement step (heading correction followed by a step).
-The input data consists of the $x$, $y$ location, and heading $\alpha$ for both the encoder derived estimates; $x_e, y_e, \theta_e$, and the VLP derived estimates; $x_{vlp}, y_{vlp}, \theta_{vlp}$.
+The targets (or labels) for the dataset are the resulting $x$ and $y$ coordinates, along with the heading $\alpha$ at the end of each movement step (heading correction followed by a step).
+The input data consists of the $x$, $y$ location, and heading $\alpha$ for both the encoder-derived estimates; $x_e, y_e, \theta_e$, and the VLP-derived estimates; $x_{vlp}, y_{vlp}, \theta_{vlp}$.
 
 
 \begin{tabular}{l|lll|llllll}
 \toprule
-Point \# & \multicolumn{3}{c}{Targets} & \multicolumn{6}{c}{Input}                                          \\ 
+Point \# & \multicolumn{3}{c}{Targets} & \multicolumn{6}{c}{Input}                                          \\
 \midrule
      & \boldmath$x$     & \boldmath$y$     & \boldmath$\theta$     & \boldmath$x_e$   & \boldmath$y_e$   & \boldmath$\theta_e$   & \boldmath$x_{vlp}$   & \boldmath$y_{vlp}$   & \boldmath$\theta_{vlp}$   \\
 \midrule
@@ -143,7 +139,7 @@ $1$       &$x^1$      & $y^1$     & $\theta^1$     & $x_e^1$   & $y_e^1$   & $\t
 $2$       &$x^2$      & $y^2$     & $\theta^2$     & $x_e^2$   & $y_e^2$   & $\theta_e^2$   & $x_{vlp}^2$   & $y_{vlp}^2$   & $\theta_{vlp}^2$   \\
 
 $\vdots$ & \multicolumn{3}{c}{$\vdots$} & \multicolumn{6}{c}{$\vdots$}               \\
-$n$       & $x^n$    & $y^n$   & $\theta^n$   & $x_e^n$ & $y_e^n$ & $\theta_e^n$ & $x_{vlp}^n$ & $y_{vlp}^n$ & $\theta_{vlp}^n$ \\ 
+$n$       & $x^n$    & $y^n$   & $\theta^n$   & $x_e^n$ & $y_e^n$ & $\theta_e^n$ & $x_{vlp}^n$ & $y_{vlp}^n$ & $\theta_{vlp}^n$ \\
 \bottomrule
 \end{tabular}
 
@@ -165,20 +161,20 @@ Models were built using the tensorflow keras library.
 The overarching model architecture was a sequence to vector RNN, with input shape (windowlen, 6).
 This meant the input of the model was an array that contained odometer and vlp estimates for the current location and orientation, back to n steps in the past. 
 The model output was the current x and y location, as well as the heading. 
-To output the co-ordinates, and output layer of 2 neurons was used with a linear activation function so the outputs were not bounded. 
-For the heading estiamte the bearing angle was deconstructed into two components. 
+To output the coordinates, and output layer of 2 neurons was used with a linear activation function so the outputs were not bounded. 
+For the heading estimate the bearing angle was deconstructed into two components. 
 The components were the $\sin$ and $\cos$ of the bearing.
-This deconstruction was done avoid the issue of the angle wrapping around causing discontinuites when the bearing fluctuated around $-180\degree$ to $180\degree$.
-It also has the benifit of allowing cosine similarity to be used as the loss function which is included in the keras library. 
-The cosine simularity computes the cosine of the angle between two vectors, which is 1 for vectors pointing in the same direction, and -1 for oposite directions. 
-when implemented by keras as a loss the sigin is inverted, so model training will converge towords similar vector directions.
+This deconstruction was done avoid the issue of the angle wrapping around causing discontinuities when the bearing fluctuated around $-180\degree$ to $180\degree$.
+It also has the benefit of allowing cosine similarity to be used as the loss function which is included in the keras library. 
+The cosine similarity computes the cosine of the angle between two vectors, which is 1 for vectors pointing in the same direction, and -1 for opposite directions. 
+When implemented by keras as a loss the sign is inverted, so model training will converge towards similar vector directions.
 
-Constructing a multivariate model requres the use of the keras functional API. 
-It also requires combining two loss functions, one for the angle (cosine simularity) and one for the locaiton (mean squared error).
+Constructing a multivariate model requires the use of the keras functional API. 
+It also requires combining two loss functions, one for the angle (cosine similarity) and one for the location (mean squared error).
 The losses are combined using a weighted sum allowing for variation in which navigation task is prioritised.
 
 \noindent\textbf{Hyperparameter tuning}
-Even with a realitivly simple RNN architecture there are many hyperparameters needing to be selected: 
+Even with a relatively simple RNN architecture there are many hyperparameters needing to be selected: 
 
 \begin{tabular}{ll}
     \toprule
@@ -195,7 +191,7 @@ Even with a realitivly simple RNN architecture there are many hyperparameters ne
 Hyperparameter tuning was done using the keras implementation of hyperband tuner.
 The process entails training a large number of models with varying hyperparameters for only a few epochs. 
 The best performing models (1/factor) are then trained for another round with more epochs. 
-The process is repeated until the best perfoming model is left.
+The process is repeated until the best performing model is left.
 The tuning configuration is as follows:
 
 
@@ -208,28 +204,28 @@ This was for x epochs.
 
 The following figures demonstrate the model being applied to a path traced out by odometry with various VLP and encoder errors. 
 \begin{figure}[h!]
-    \includegraphics[scale = 0.5]{{../figures/pre_model_ex1}}
+    \includegraphics[scale = 0.5]{../figures/pre_model_ex1}
     \caption{Demonstration of model prediction performance}
-    \label{fig:vlp_drift}
+    \label{fig:vlp_drift_2}
     \end{figure}
 
 \begin{figure}[h!]
-    \includegraphics[scale = 0.5]{{../figures/pre_model_ex2}}
+    \includegraphics[scale = 0.5]{../figures/pre_model_ex2}
     \caption{Demonstration of model prediction performance}
-    \label{fig:vlp_drift}
+    \label{fig:vlp_drift_3}
     \end{figure}
 
 \begin{figure}[h!]
-    \includegraphics[scale = 0.5]{{../figures/pre_model_ex3}}
+    \includegraphics[scale = 0.5]{../figures/pre_model_ex3}
     \caption{Demonstration of model prediction performance}
-    \label{fig:vlp_drift}
+    \label{fig:offline_model_test}
     \end{figure}
 
-When tested over all points in the testign set, the following performance was acheived. 
+When tested over all points in the testing set, the following performance was achieved. 
 \begin{figure}[h!]
-    \includegraphics[scale = 0.5]{{../figures/offline_model_test.png}}
+    \includegraphics[scale = 0.5]{../figures/offline_model_test.png}
     \caption{Demonstration of model prediction performance}
-    \label{fig:vlp_drift}
+    \label{fig:offline_model_test_2}
     \end{figure}
 
 
@@ -251,5 +247,5 @@ When tested over all points in the testign set, the following performance was ac
 
 \subsubsection{Model performance - live navigation}
 Once trained on generated data from odometry navigation, the model was then used for live navigation. 
-This worked by using the models location and heading estimates to determine the corection angle needed, as well as when the target position was reached. 
+This worked by using the models location and heading estimates to determine the correction angle needed, as well as when the target position was reached. 
 Several different paths were tested
