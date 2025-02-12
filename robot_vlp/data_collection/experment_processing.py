@@ -29,7 +29,7 @@ def main(
     # ----------------------------------------------
 ):
     
-    files = ['exp01','exp02','exp03', 'exp07', 'exp04','exp05']
+    files = ['exp1_9', 'exp1_10', 'exp1_11','exp1_12']
     # ---- REPLACE THIS WITH YOUR OWN CODE ----
     logger.info("Processing experment dataset")
 
@@ -158,6 +158,17 @@ def process_robot_exp_file(input_file, vlp_model):
 
     df = calc_encoder_xy_hist(df)
     df.reset_index(drop = True, inplace = True)
+
+    #derive radian based angles
+    df['heading_hist_rad'] = np.radians(df['heading_hist'])
+    df['encoder_heading_hist_rad'] = np.radians(df['encoder_heading_hist'])
+    df['encoder_heading_change_rad'] = np.radians(df['encoder_heading_change'])
+    df['encoder_heading_change_err_rad'] = np.radians(df['encoder_heading_change_err'])
+    df['vlp_heading_hist_rad'] = np.radians(df['vlp_heading_hist'])
+    df['vlp_heading_change_rad'] = np.radians(df['vlp_heading_change'])
+
+
+
     return df
 
     
@@ -261,6 +272,24 @@ def calc_encoder_xy_hist(df):
     df['encoder_y_hist'] = np.array(dy_sum) + df['y_hist'].iloc[0]
 
     return df
+
+
+
+def filter_outliers(data, threshold=1.5):
+
+    data = np.asarray(data)  # Ensure input is a NumPy array
+    data = data[~np.isnan(data)] 
+    q1 = np.percentile(data, 25)  # First quartile (Q1)
+    q3 = np.percentile(data, 75)  # Third quartile (Q3)
+    iqr = q3 - q1  # Interquartile range (IQR)
+    
+    # Calculate bounds for non-outliers
+    lower_bound = q1 - threshold * iqr
+    upper_bound = q3 + threshold * iqr
+    
+    # Filter the data
+    filtered_data = data[(data >= lower_bound) & (data <= upper_bound)]
+    return filtered_data
 
 if __name__ == "__main__":
     app()

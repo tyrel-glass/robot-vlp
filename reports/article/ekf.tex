@@ -1,0 +1,148 @@
+% ===================================================================================================================================================
+% ===========================================================  EKF ===================================================================================
+% ===================================================================================================================================================
+
+
+
+
+
+\section*{Extended Kalman Filter (EKF) Implementation}
+
+
+
+
+The EKF is implemented for estimating the position and heading of a robot using noisy measurements from wheel encoders and a Visual Light Positioning (VLP) system. The filter operates in two stages: a 	\textbf{prediction step}, where the robot's state is estimated based on motion model equations, and an 	\textbf{update step}, where the state estimate is corrected using sensor measurements. 
+
+A key aspect of this implementation is the transformation of process noise from motion space to state space using a dynamically updated transformation matrix. Additionally, the measurement update incorporates a heading computed from the VLP motion vector. EKF parameters are optimized via differential evolution to improve estimation accuracy.
+
+\subsection*{State Representation}
+The state vector is defined as:
+\[
+\bm{x} = 
+\begin{bmatrix}
+x \\
+y \\
+\theta
+\end{bmatrix},
+\]
+where:
+\begin{itemize}
+    \item \(x, y\) represent the robot's position in 2D space.
+    \item \(\theta\) is the robot's heading (in degrees).
+\end{itemize}
+
+\subsection*{Process Model and Prediction}
+
+At each time step, the robot’s motion is predicted using the encoder measurements:
+\[
+\bm{x}_{k+1} =
+\begin{bmatrix}
+x_k + d \,\sin(\theta_k + \Delta\theta) \\
+y_k + d \,\cos(\theta_k + \Delta\theta) \\
+\theta_k + \Delta\theta
+\end{bmatrix},
+\]
+where:
+\begin{itemize}
+    \item \(d\) is the distance traveled (from encoder).
+    \item \(\Delta\theta\) is the change in heading (from encoder).
+    \item \(\theta_k\) is normalized to \([-180^\circ, 180^\circ]\) after updating.
+\end{itemize}
+
+\paragraph{Process Noise Transformation:}  
+The filter employs a transformation matrix \(\bm{G}\) to project motion noise into state space dynamically. Since motion noise is initially defined in terms of movement distance and heading change, it must be transformed to align with the Cartesian state representation.
+
+The original motion noise covariance is:
+\[
+\bm{Q}_{\text{motion}} = \begin{bmatrix} Q_{d} & 0 \\ 0 & Q_{\theta} \end{bmatrix},
+\]
+where \(Q_d\) and \(Q_{\theta}\) represent noise variances for linear displacement and angular rotation, respectively.
+
+To account for varying heading orientations, the transformation matrix \(\bm{G}\) is dynamically updated:
+\[
+\bm{G} = 
+\begin{bmatrix}
+\sin(\theta_{\text{new}}) & 0\\[1mm]
+\cos(\theta_{\text{new}}) & 0\\[1mm]
+0 & 1
+\end{bmatrix},
+\]
+where \(\theta_{\text{new}} = \theta_k + \Delta\theta\) (normalized).
+
+The process noise covariance is then computed as:
+\[
+\bm{Q} = \bm{G} \, \bm{Q}_{\text{motion}} \, \bm{G}^T.
+\]
+This transformation ensures that noise affecting displacement and rotation is accurately represented in the state space, improving estimation robustness.
+
+\paragraph{Jacobian of the Process Model:}  
+The Jacobian \(\bm{F}_k\) of the motion model (with respect to the state) is:
+\[
+\bm{F}_k =
+\begin{bmatrix}
+1 & 0 & d \cos(\theta_{\text{new}}) \\[1mm]
+0 & 1 & -d \sin(\theta_{\text{new}}) \\[1mm]
+0 & 0 & 1
+\end{bmatrix}.
+\]
+The covariance prediction is given by:
+\[
+\bm{P}_{k+1|k} = \bm{F}_k\, \bm{P}_k\, \bm{F}_k^T + \bm{Q}.
+\]
+
+\subsection*{Measurement Model and Update}
+
+The VLP system provides noisy position measurements. Additionally, heading information is derived from the VLP by computing the angle of the displacement vector between the previous and current VLP positions.
+
+\paragraph{Measurement Vector:}  
+The measurement is augmented to include the heading:
+\[
+\bm{z} =
+\begin{bmatrix}
+z_x \\
+z_y \\
+\theta_{\text{vlp}}
+\end{bmatrix},
+\]
+where:
+\begin{itemize}
+    \item \(z_x, z_y\) are the VLP-provided positions.
+    \item \(\theta_{\text{vlp}}\) is computed as:
+    \[
+    \theta_{\text{vlp}} = \arctan2\big(z_x - x_{\text{prev}},\, z_y - y_{\text{prev}}\big) \quad (\text{converted to degrees}),
+    \]
+    with \((x_{\text{prev}}, y_{\text{prev}})\) being the last updated position.
+\end{itemize}
+
+\paragraph{Measurement Model:}  
+With the measurement now three-dimensional, the model is expressed as:
+\[
+\bm{z} = \bm{H}_k\, \bm{x} + \bm{\nu}, \quad \bm{\nu} \sim \mathcal{N}(\bm{0}, \bm{R}),
+\]
+where the measurement matrix is:
+\[
+\bm{H}_k = \bm{I}_3.
+\]
+The measurement noise covariance is:
+\[
+\bm{R} =
+\begin{bmatrix}
+R_x & 0 & 0 \\
+0 & R_y & 0 \\
+0 & 0 & R_{\theta}
+\end{bmatrix},
+\]
+where \(R_x, R_y, R_{\theta}\) are determined from sensor error statistics and scaled via optimization parameters.
+
+\paragraph{Update Equations:}  
+The innovation (residual) is computed as:
+\[
+\bm{y}_k = \bm{z} - \bm{x}_{k+1|k},
+\]
+with the heading component normalized to \([-180^\circ, 180^\circ]\). The state and covariance updates follow standard EKF equations.
+
+\subsection*{Parameter Optimization via Differential Evolution}
+
+The EKF parameters are optimized using differential evolution to minimize localization error. Parameters tuned include scaling factors for process noise (\(Q_d, Q_\theta\)) and measurement noise (\(R_x, R_y, R_\theta\)). The objective function balances heading and position errors to improve performance.
+
+This structured EKF implementation provides robust state estimation by dynamically transforming noise, incorporating VLP heading, and optimizing parameters for improved accuracy.

@@ -25,7 +25,7 @@ def build_train_data(
     include_model_data =  not exclude_model_data
     
     overlap = 0.975
-    window_len = 40
+    window_len = 10
     skip = [' ']
  
 

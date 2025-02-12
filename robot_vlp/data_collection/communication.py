@@ -3,7 +3,7 @@ import socket
 import time
 import serial
 import time
-import robot_vlp.data.triad_openvr.triad_openvr as vr
+# import robot_vlp.data.triad_openvr.triad_openvr as vr
 import pandas as pd
 import numpy as np
 import csv
@@ -18,6 +18,7 @@ from scipy.spatial.transform import Rotation as R
 #====================================================================
 
 def average_vlp_readings(data):
+
     return average_of_closest_to_median(data, num_points= 5)
 
 def process_vlp(df):
@@ -25,7 +26,7 @@ def process_vlp(df):
 
     df.loc[:,'pks'] = df['vlp_data'].apply(lambda v: [np.array(calc_pks(FFT_win(data)[0]))for data in v])
 
-    df.loc[:,['L1', 'L2', 'L3', 'L4']] = np.array(df['pks'].apply(lambda v: np.apply_along_axis(average_vlp_readings, 0,np.array(v))).to_list())
+    df.loc[:,['L1', 'L2', 'L3', 'L4']] = np.array(df['pks'].apply(lambda v: np.apply_along_axis(np.mean, 0,np.array(v))).to_list())
 
     # ======================================================================
     # ==============================  TESTING   ======================= 

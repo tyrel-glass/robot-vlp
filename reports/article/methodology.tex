@@ -1,73 +1,156 @@
-
 \section{Methodology}
+% ===================================  Overivew of robot ===========================
+\subsection{Robot Functionality}
 
+The experimental robot is a custom-built, mobile platform designed for testing navigation strategies. It employs two 	extbf{Metal DC Geared Motors with Encoders} (SKU: FIT0521) for locomotion, driven by a 	extbf{TB6612FNG Dual DC Motor Driver}. The system is controlled by an 	extbf{Arduino Nano V3.0 (ATmega328P CH340 Version)}, with an 	extbf{ESP8266} module providing wireless TCP communication with a remote computer.
 
-%-------------------------- Navigation ------------------------
-\subsection{Robot Movement}
+\subsubsection{Motor Specifications}
 
-For simplicity, the robot's locomotion is restricted to two types of movement:
-\begin{itemize}
-    \item \textbf{Forward motion}: Both wheels turn at the same speed and for the same duration, causing the robot to move straight.
-    \item \textbf{In-place rotation}: Both wheels turn at the same speed but in opposite directions, allowing the robot to rotate around its center without changing its location.
-\end{itemize}
+The robot's motors operate at 	extbf{6V} with a 	extbf{34:1 metal gearbox} and an integrated quadrature encoder, providing 	extbf{341.2 counts per revolution (PPR)} of the output shaft.
 
-The navigation objective is for the robot to sequentially reach a series of target points \( P_1, P_2, \dots, P_n \). Realistically, the robot will not reach an exact target point due to physical limitations. Therefore, a threshold distance \( d_t \) is specified. If the robot is within \( d_t \) of the target, it is considered to have reached the target.
-
-To move towards the current target location, the robot follows a two-step iterative process:
-
-\begin{itemize}
-    \item \textbf{Heading Adjustment}: The robot turns by a set angle \( \alpha \) towards the target.
-    \item \textbf{Forward Motion}: The robot moves forward by a distance \( d \) along the adjusted heading.
-\end{itemize}
-
-This process repeats until the robot is within the threshold distance \( d_t \) of all target points.
-
-The robot's state is represented by the vector:
-\[
-\mathbf{x} = \begin{bmatrix}
-    x \\
-    y \\
-    \theta \\
-\end{bmatrix}
-\]
-where \( x \) and \( y \) are the robot's current location, and \( \theta \) is its heading (orientation).
-
-### In-Place Rotation
-A robot rotation comprises a heading change \( \Delta\theta \), while its position \( x \) and \( y \) remain unchanged. The new heading becomes:
-\[
-\theta' = \theta + \Delta\theta
-\]
-
-The rotation matrix expressing this movement is:
-\[
-R_{\Delta\theta} = \begin{bmatrix}
-    \cos(\Delta\theta) & -\sin(\Delta\theta) & 0 \\
-    \sin(\Delta\theta) & \cos(\Delta\theta) & 0 \\
-    0 & 0 & 1
-\end{bmatrix}
-\]
-
-### Navigation Process
-To navigate to a target, the robot calculates the difference between its current heading and the heading towards the target. The navigation steps are as follows:
-
-\begin{itemize}
-    \item Compute the heading difference \( \Delta\theta \) between the current heading \( \theta \) and the heading to the target.
-    \item Adjust the heading in steps of \( \alpha \) until the desired heading is approximately reached.
-    \item Move forward by a distance \( d \) in the current heading direction.
-    \item Repeat this process until the robot is within the threshold distance \( d_t \) of the target.
-\end{itemize}
-
-This sequence of heading adjustment followed by forward motion is repeated for each target point in the series.
-
-\begin{figure}[h!]
+\begin{table}[h]
     \centering
-    \includegraphics[scale=0.3]{figures/turn_step}
-    \caption{Path planning steps: \textbf{(1)} Calculate the difference between the current heading and the target. \textbf{(2)} Adjust the heading. \textbf{(3)} Take a step in the adjusted heading direction. \textbf{(4)} Repeat until reaching the target.}
-    \label{fig:turn_step}
-\end{figure}
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Specification} & \textbf{Value} \\
+        \midrule
+        Motor Rated Voltage & 6V \\
+        Encoder Rated Voltage & 3.3V / 5V \\
+        Gear Reduction Ratio & 34:1 \\
+        No-load Speed & 210 RPM @ 0.13A \\
+        Maximum Efficiency & 2.0 kg$\cdot$cm @ 170 RPM, 2.0W, 0.6A \\
+        Maximum Power Output & 5.2 kg$\cdot$cm @ 110 RPM, 3.1W, 1.1A \\
+        Stall Torque & 10 kg$\cdot$cm \\
+        Stall Current & 3.2A \\
+        Encoder Resolution & 11 counts/rev (motor shaft), 341.2 PPR (output shaft) \\
+        Dimensions & 52 mm $\times$ 24.4 mm \\
+        Weight & 96g \\
+        \bottomrule
+    \end{tabular}
+    \caption{Motor Specifications}
+    \label{tab:motor_specs}
+\end{table}
+
+\subsubsection{Motor Driver Specifications}
+
+The 	extbf{TB6612FNG Dual DC Motor Driver} allows independent control of both motors, with low ON-resistance MOSFETs and multiple operating modes.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Specification} & \textbf{Value} \\
+        \midrule
+        Supply Voltage (VM) & 2.5V – 13.5V \\
+        Logic Voltage (Vcc) & 2.7V – 5.5V \\
+        Continuous Output Current & 1.2A per channel \\
+        Peak Output Current & 3.2A per channel \\
+        Output Low ON-Resistance & 0.5$\Omega$ (Upper + Lower, @VM $\geq$ 5V) \\
+        PWM Frequency & Up to 100 kHz \\
+        Operating Modes & CW, CCW, Short Brake, Stop \\
+        Protection Features & Thermal Shutdown, Low-Voltage Detection \\
+        Package Type & SSOP24 (0.65mm lead pitch) \\
+        Weight & 0.14g \\
+        \bottomrule
+    \end{tabular}
+    \caption{TB6612FNG Motor Driver Specifications}
+    \label{tab:motor_driver_specs}
+\end{table}
+
+\subsubsection{Microcontroller Specifications}
+
+The 	extbf{Arduino Nano V3.0} provides control and sensor processing capabilities, while an 	extbf{ESP8266} module enables TCP communication.
+
+\begin{table}[h]
+    \centering
+    \begin{tabular}{ll}
+        \toprule
+        \textbf{Specification} & \textbf{Value} \\
+        \midrule
+        Microcontroller & ATmega328P \\
+        USB Interface & CH340G \\
+        Operating Voltage & 5V \\
+        Input Voltage (Vin) & 7V – 12V \\
+        Digital I/O Pins & 14 (6 PWM output) \\
+        Analog Input Pins & 8 \\
+        Flash Memory & 32 KB (2 KB used by bootloader) \\
+        SRAM & 2 KB \\
+        EEPROM & 1 KB \\
+        Clock Speed & 16 MHz \\
+        Communication Interfaces & UART, I2C, SPI \\
+        PWM Channels & 6 \\
+        ADC Resolution & 10-bit \\
+        Dimensions & 45 mm $\times$ 18 mm \\
+        Weight & 7g \\
+        \bottomrule
+    \end{tabular}
+    \caption{Arduino Nano V3.0 Specifications}
+    \label{tab:arduino_nano_specs}
+\end{table}
+
+\subsection{Robot Navigation and Control}
+
+The robot operates using two primary movement types:
+\begin{itemize}
+    \item \textbf{Forward motion}: Both wheels turn at equal speed, maintaining a straight trajectory.
+    \item \textbf{In-place rotation}: Wheels rotate in opposite directions, adjusting the robot’s heading without displacement.
+\end{itemize}
+
+Navigation is performed by sequentially reaching predefined target points $P_1, P_2, \dots, P_n$. Given physical constraints, a threshold distance $d_t$ defines successful target acquisition.
+
+The robot’s state vector is given by:
+\begin{equation}
+\mathbf{x} = \begin{bmatrix} x \\ y \\ \theta \end{bmatrix}
+\end{equation}
+where $(x, y)$ represents the robot’s position and $\theta$ is its orientation.
+
+\subsubsection{Embedded Control System}
+
+The control system ensures accurate movement through encoder-based feedback and proportional speed adjustments:
+\begin{enumerate}
+    \item Quadrature encoders provide real-time wheel rotation data.
+    \item Interrupt-driven encoder processing ensures precise tracking.
+    \item PWM-based motor control dynamically adjusts speed to maintain balance.
+    \item Serial debugging enables real-time parameter tuning.
+\end{enumerate}
+
+The motion execution is achieved through:
+\begin{itemize}
+    \item \textbf{Proportional Control}: Encoder differences adjust PWM signals dynamically.
+    \item \textbf{Independent Motor Stopping}: Each motor stops independently upon reaching target encoder counts.
+    \item \textbf{Error Correction}: PWM adjustments compensate for discrepancies in motor performance.
+\end{itemize}
+
+This embedded system enables precise and reliable motion control, allowing the robot to navigate autonomously while compensating for mechanical and environmental variances.
 
 
 
+% ================================= VLP SYSTEM =========================
+\subsection{VLP system overview}
+
+The VLP system consists of four transmitters constructed with consumer grade 10W LED luminaires model REX100DL WHWWDIM. 
+The system uses discrete tone multiplexing based on IM/DD.
+These luminaires are fixed to an aluminium frame at a 1050 mm height, with fixed x–y locations: TX1 (0, 0), TX2 (0, 780), TX3 (760, 780), and TX4 (760, 0).
+For the experiments conducted, square wave frequencies of 15 kHz, 17 kHz, 20 kHz, and 23 kHz were inserted by a modulator driver circuit powered by a 30 V power supply. 
+The input of the modulator circuit is connected to a function generator which supplies the required square wave. 
+
+
+The receiver tag consists of a photodiode, trans-impedance amplifier, and active high pass filter. 
+The filter eliminates 100 Hz power-line flicker and the DC manifestation of the ambient light. 
+The ambient light thus has no noticeable impact on the performance of the developed VLP as long as the light sensor is not saturated. 
+A simple inverting amplifier stage then strengthens the filter output to a level suitable for Analog to Digital Conversion (ADC). 
+This signal is then fed to a microcontroller that carries out the ADC. 
+A microcontroller is used to facilitate the high sampling rate of 50 kHz.
+
+A VLP measurment is taken by collecting 512 ADC samples, which takes aproximatly 10.4ms at a 50kHz sample rate. 
+The sample is then sent over UART to the ESP8266 where it is sent over WiFi using TCP to python scrip running on a host computer.
+Processing of the ADC values is implemented on the host computer.
+The signal is centered by subtracting the mean, normalized by dividing by the maximum value, and hanning windowed. 
+The FFT of the signal is then taken. 
+ 
+
+
+An OpenBuilds BlackBox Motion Control System (MCS) with Grbl firmware controls the stepper motors
 
 %-------------------------- GENERATED PATHS ------------------------
 \subsubsection{Generated paths}
@@ -249,3 +332,8 @@ When tested over all points in the testing set, the following performance was ac
 Once trained on generated data from odometry navigation, the model was then used for live navigation. 
 This worked by using the models location and heading estimates to determine the correction angle needed, as well as when the target position was reached. 
 Several different paths were tested
+
+% ===================================================================================================================================================
+% ================================================= METHODOLOGY END =================================================================================
+% ===================================================================================================================================================
+

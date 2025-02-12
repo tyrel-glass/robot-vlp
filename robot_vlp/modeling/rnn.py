@@ -21,7 +21,7 @@ from tqdm import tqdm
 
 from robot_vlp.config import MODELS_DIR, PROCESSED_DATA_DIR, FIGURES_DIR, TRAINING_LOGS_DIR, INTERIM_DATA_DIR
 
-tf.config.set_visible_devices([], 'GPU')
+# tf.config.set_visible_devices([], 'GPU')
 
 def ang_loss_fn(y_true, y_pred):
     return tf.add(keras.losses.cosine_similarity(y_true, y_pred) , 1)

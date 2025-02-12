@@ -123,7 +123,7 @@ def build_and_train_model(X_train, y_train, X_valid, y_valid,partial_data = Fals
         )
     else:
         X_train_partial, _, y_train_partial, _ = train_test_split(
-        X_train_scaled, y_train, train_size=0.27, random_state=42
+        X_train_scaled, y_train, train_size=0.2, random_state=42
             )
         history = model.fit(
             X_train_partial, y_train_partial,
