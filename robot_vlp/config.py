@@ -22,7 +22,7 @@ VLP_MODELS_DIR = MODELS_DIR / "vlp"
 TRAINING_LOGS_DIR = MODELS_DIR / "training_logs"
 
 REPORTS_DIR = PROJ_ROOT / "reports"
-FIGURES_DIR = REPORTS_DIR / "figures"
+FIGURES_DIR = REPORTS_DIR / "article/figures"
 TABLES_DIR = REPORTS_DIR / "tables"
 
 

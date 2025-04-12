@@ -538,18 +538,20 @@ def send_command_to_nano(command):
 
 
 
-def process_move_wifi(cmd, log_file, vive, transformer = None, vlp_read = True):
+def process_move_wifi(cmd, log_file, vive, transformer = None, vlp_read = True, log = True):
 
     nano_response = send_command_to_nano(cmd)
     print(nano_response)
     nano_response = send_command_to_nano('')
-    vive_data = read_vive(vive)
+
     if vlp_read:
 
         vlp_data = read_n_vlp(3)
     else:
         vlp_data = None
-    vive_robot_log_write(vive_data,vlp_data, cmd = cmd, log_file = log_file)
+    if log:
+        vive_data = read_vive(vive)
+        vive_robot_log_write(vive_data,vlp_data, cmd = cmd, log_file = log_file)
 
 
 #====================================================================

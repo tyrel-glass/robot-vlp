@@ -1,19 +1,16 @@
+
+
 % ===================================================================================================================================================
 % ===========================================================  EKF ===================================================================================
 % ===================================================================================================================================================
 
-
-
-
-
 \section*{Extended Kalman Filter (EKF) Implementation}
 
+The EKF is implemented for estimating the position and heading of a robot using noisy measurements from wheel encoders and a Visual Light Positioning (VLP) system. The filter operates in two stages: a \textbf{prediction step}, where the robot's state is estimated based on motion model equations, and an \textbf{update step}, where the state estimate is corrected using sensor measurements.
 
-
-
-The EKF is implemented for estimating the position and heading of a robot using noisy measurements from wheel encoders and a Visual Light Positioning (VLP) system. The filter operates in two stages: a 	\textbf{prediction step}, where the robot's state is estimated based on motion model equations, and an 	\textbf{update step}, where the state estimate is corrected using sensor measurements. 
-
-A key aspect of this implementation is the transformation of process noise from motion space to state space using a dynamically updated transformation matrix. Additionally, the measurement update incorporates a heading computed from the VLP motion vector. EKF parameters are optimized via differential evolution to improve estimation accuracy.
+A key aspect of this implementation is the transformation of process noise from motion space to state space using a dynamically updated transformation matrix. Dynamic allocaiton of process noise based on the amount the heading changes is used. 
+Additionally, the measurement update incorporates a heading computed from the VLP motion vector. 
+EKF parameters are optimized via differential evolution to improve estimation accuracy.
 
 \subsection*{State Representation}
 The state vector is defined as:
@@ -31,6 +28,8 @@ where:
     \item \(\theta\) is the robot's heading (in degrees).
 \end{itemize}
 
+% ============================= MODEL PREDICTION =======================================
+% ======================================================================================
 \subsection*{Process Model and Prediction}
 
 At each time step, the robot’s motion is predicted using the encoder measurements:
@@ -49,16 +48,34 @@ where:
     \item \(\theta_k\) is normalized to \([-180^\circ, 180^\circ]\) after updating.
 \end{itemize}
 
-\paragraph{Process Noise Transformation:}  
-The filter employs a transformation matrix \(\bm{G}\) to project motion noise into state space dynamically. Since motion noise is initially defined in terms of movement distance and heading change, it must be transformed to align with the Cartesian state representation.
+% ========================== DYNAMIC UPDATE OF HEADING COVARIANCE ==========================
+\subsection*{Dynamically Generated Process Noise Covariance}
 
-The original motion noise covariance is:
+Since the robot's motion comprises a heading adjustment followed by a fixed step, the motion noise covariance is given by:
 \[
-\bm{Q}_{\text{motion}} = \begin{bmatrix} Q_{d} & 0 \\ 0 & Q_{\theta} \end{bmatrix},
+\bm{Q}_{\text{motion}} = \begin{bmatrix} Q_{d} & 0 \\ 0 & Q_{\theta} \end{bmatrix}.
 \]
-where \(Q_d\) and \(Q_{\theta}\) represent noise variances for linear displacement and angular rotation, respectively.
 
-To account for varying heading orientations, the transformation matrix \(\bm{G}\) is dynamically updated:
+Due to the minimum turning threshold of 20 degrees, many position update steps do not involve a heading correction before a step. When this occurs, the error associated with the heading change is much lower than if a turn occurs. To leverage this information and more accurately model the robot's motion, the process noise covariance is generated dynamically based on the turning angle at each step. The idea is that when the robot makes little or no turn, the heading noise is lower. Specifically, for a change in heading \(\Delta \theta\):
+\begin{itemize}
+    \item If \(|\Delta \theta| < \dfrac{\pi}{180}\) (i.e., negligible turn), the heading noise is set to:
+    \[
+    Q_{\theta,\text{dynamic}} = Q_{\theta,\text{no turn}},
+    \]
+    \item Otherwise, a higher heading noise is applied:
+    \[
+    Q_{\theta,\text{dynamic}} = Q_{\theta,\text{turn}}.
+    \]
+\end{itemize}
+
+The distance (or step) noise is unchanged since it is not affected by the angle turned. Thus, the motion noise covariance for the current step is:
+\[
+\bm{Q}_{\text{motion}} = \begin{bmatrix} Q_{d} & 0 \\ 0 & Q_{\theta,\text{dynamic}} \end{bmatrix},
+\]
+where \(Q_d\) is the distance variance and \(Q_{\theta,\text{dynamic}}\) is the variance based on the angle turned.
+
+\paragraph{Transformation of Motion Noise into State Space:}  
+Since motion is initially defined in terms of step distance and heading change, it must be transformed to align with the Cartesian state representation. The filter employs a transformation matrix \(\bm{G}\) to project motion noise into state space. Due to the transformation's dependence on the current heading, the mapping must be done dynamically at each prediction step. The transformation \(\bm{G}\) is given by:
 \[
 \bm{G} = 
 \begin{bmatrix}
@@ -75,8 +92,9 @@ The process noise covariance is then computed as:
 \]
 This transformation ensures that noise affecting displacement and rotation is accurately represented in the state space, improving estimation robustness.
 
+% =============================== JACOBIAN ========================
 \paragraph{Jacobian of the Process Model:}  
-The Jacobian \(\bm{F}_k\) of the motion model (with respect to the state) is:
+Since the sine and cosine functions in the motion model are nonlinear, the Jacobian is used to create a linear approximation of the model. The Jacobian \(\bm{F}_k\) of the motion model (with respect to the state) is:
 \[
 \bm{F}_k =
 \begin{bmatrix}
@@ -90,12 +108,14 @@ The covariance prediction is given by:
 \bm{P}_{k+1|k} = \bm{F}_k\, \bm{P}_k\, \bm{F}_k^T + \bm{Q}.
 \]
 
+% ===========================   MODEL UPDATE ===============================================
+% ===========================================================================================
 \subsection*{Measurement Model and Update}
 
-The VLP system provides noisy position measurements. Additionally, heading information is derived from the VLP by computing the angle of the displacement vector between the previous and current VLP positions.
+The VLP system provides position measurements. Additionally, heading information is derived from the VLP by computing the angle of the displacement vector between the previous EKF update and the current VLP position estimate.
 
 \paragraph{Measurement Vector:}  
-The measurement is augmented to include the heading:
+The measurement is the combination of the x and y estimates, along with the calculated heading:
 \[
 \bm{z} =
 \begin{bmatrix}
@@ -115,34 +135,199 @@ where:
 \end{itemize}
 
 \paragraph{Measurement Model:}  
-With the measurement now three-dimensional, the model is expressed as:
+With the inclusion of the VLP-derived heading, the measurement vector is three-dimensional. The model is expressed as:
 \[
 \bm{z} = \bm{H}_k\, \bm{x} + \bm{\nu}, \quad \bm{\nu} \sim \mathcal{N}(\bm{0}, \bm{R}),
 \]
-where the measurement matrix is:
+where the measurement matrix is a direct mapping:
 \[
-\bm{H}_k = \bm{I}_3.
+\bm{H}_k = \bm{I}_3,
 \]
-The measurement noise covariance is:
+and \(\bm{\nu}\) is the measurement noise, assumed to be Gaussian with zero mean and covariance \(\bm{R}\).
+
+The measurement noise covariance is given by:
 \[
-\bm{R} =
+\mathbf{R} =
 \begin{bmatrix}
-R_x & 0 & 0 \\
-0 & R_y & 0 \\
+R_{\text{x}} & 0 & 0 \\
+0 & R_{\text{y}}  & 0 \\
 0 & 0 & R_{\theta}
+\end{bmatrix}.
+\]
+
+% ========================= Covariance simplification ===============
+Given that the robot always moves a fixed step size, it can be shown (in the Appendix) that by assuming \( R_x = R_y = R_{\text{pos}} \) (i.e., the noise covariance is the same in both the x and y components), the measurement noise covariance can be simplified to:
+\[
+\mathbf{R} =
+\begin{bmatrix}
+R_{\text{pos}} & 0 & 0 \\
+0 & R_{\text{pos}}  & 0 \\
+0 & 0 & \dfrac{R_{\text{pos}}}{d^2}
 \end{bmatrix},
 \]
-where \(R_x, R_y, R_{\theta}\) are determined from sensor error statistics and scaled via optimization parameters.
+where \(R_{\text{pos}}\) represents the averaged variance of the VLP positional errors and the heading noise variance is derived from \(R_{\text{pos}}\) given the constant step size. This assumption simplifies the number of parameters needed to define the EKF.
 
 \paragraph{Update Equations:}  
 The innovation (residual) is computed as:
 \[
 \bm{y}_k = \bm{z} - \bm{x}_{k+1|k},
 \]
-with the heading component normalized to \([-180^\circ, 180^\circ]\). The state and covariance updates follow standard EKF equations.
+with the heading component normalized to \([-180^\circ, 180^\circ]\). 
 
+
+% ================================= Overview of EKF ===============
+\section*{Summary of EKF Operation}
+
+The Extended Kalman Filter (EKF) is a recursive estimator for nonlinear systems. 
+It operates in two main steps: the \textbf{prediction} step, where the state is propagated through the motion model, and the \textbf{update} step, where measurements are incorporated to correct the prediction.
+
+\subsection*{Prediction Step}
+
+In the prediction step, the state is propagated using the nonlinear motion model:
+\[
+\bm{x}_{k+1} =
+\begin{bmatrix}
+x_k + d\,\sin(\theta_k+\Delta\theta) \\
+y_k + d\,\cos(\theta_k+\Delta\theta) \\
+\theta_k+\Delta\theta
+\end{bmatrix},
+\]
+\noindent where:
+\begin{itemize}
+    \item \(d\) is the distance traveled,
+    \item \(\Delta\theta\) is the change in heading,
+    \item The heading \(\theta\) is normalized to \([-180^\circ, 180^\circ]\).
+\end{itemize}
+
+The uncertainty in the predicted state is updated as:
+\[
+\bm{P}_{k+1|k} = \bm{F}_k\, \bm{P}_k\, \bm{F}_k^T + \bm{Q},
+\]
+where:
+\begin{itemize}
+    \item \(\bm{F}_k\) is the Jacobian of the motion model, used to linearize the nonlinear dynamics,
+    \item \(\bm{Q}\) is the process noise covariance, which is computed by transforming the motion noise covariance \(\bm{Q}_{\text{motion}}\) using a dynamically updated transformation matrix \(\bm{G}\):
+    \[
+    \bm{Q} = \bm{G}\, \bm{Q}_{\text{motion}}\, \bm{G}^T.
+    \]
+\end{itemize}
+
+\subsection*{Update Step}
+
+When a new measurement \(\bm{z}_k\) is received, the measurement model relates the state to the measurement:
+\[
+\bm{z}_k = \bm{H}_k\, \bm{x}_k + \bm{\nu}_k,
+\]
+where:
+\begin{itemize}
+    \item \(\bm{H}_k\) is the measurement matrix (often the identity if the state is directly measured),
+    \item \(\bm{\nu}_k\) is the measurement noise with covariance \(\bm{R}\).
+\end{itemize}
+
+The update step consists of the following equations:
+
+\begin{enumerate}
+    \item \textbf{Innovation (Residual):}
+    \[
+    \bm{y}_k = \bm{z}_k - \bm{H}_k\, \hat{\bm{x}}_{k|k-1},
+    \]
+    \noindent where \(\bm{y}_k\) is the difference between the actual measurement and the predicted measurement.
+    
+    \item \textbf{Innovation Covariance:}
+    \[
+    \bm{S}_k = \bm{H}_k\, \bm{P}_{k|k-1}\, \bm{H}_k^T + \bm{R},
+    \]
+    \noindent which quantifies the uncertainty in the measurement prediction.
+    
+    \item \textbf{Kalman Gain:}
+    \[
+    \bm{K}_k = \bm{P}_{k|k-1}\, \bm{H}_k^T\, \bm{S}_k^{-1},
+    \]
+    \noindent determining how much the measurement should adjust the prediction.
+    
+    \item \textbf{State Update:}
+    \[
+    \hat{\bm{x}}_{k|k} = \hat{\bm{x}}_{k|k-1} + \bm{K}_k\, \bm{y}_k,
+    \]
+    \noindent which computes the new state estimate by incorporating the innovation.
+    
+    \item \textbf{Covariance Update:}
+    \[
+    \bm{P}_{k|k} = \left(\bm{I} - \bm{K}_k\, \bm{H}_k\right) \bm{P}_{k|k-1},
+    \]
+    \noindent updating the state covariance to reflect the reduced uncertainty after the measurement update.
+\end{enumerate}
+
+\bigskip
+
+\textbf{High-Level Overview:}  
+The EKF first uses the motion model to predict the next state and its uncertainty (prediction step). Then, when a new measurement arrives, it computes the difference (innovation) between the predicted measurement and the actual measurement. Using this innovation and its covariance, the filter computes a Kalman gain that balances the trust between the prediction and the measurement. Finally, the state and its covariance are updated to yield a new, more accurate estimate. This process repeats recursively, providing continuous state estimation in the presence of nonlinear dynamics and noisy measurements.
+
+
+
+% ================================================ Tuning via Differential Evolution ================
+% ===================================================================================================
 \subsection*{Parameter Optimization via Differential Evolution}
 
 The EKF parameters are optimized using differential evolution to minimize localization error. Parameters tuned include scaling factors for process noise (\(Q_d, Q_\theta\)) and measurement noise (\(R_x, R_y, R_\theta\)). The objective function balances heading and position errors to improve performance.
 
-This structured EKF implementation provides robust state estimation by dynamically transforming noise, incorporating VLP heading, and optimizing parameters for improved accuracy.
+This structured EKF implementation provides robust state estimation by dynamically transforming noise, incorporating VLP-derived heading, and optimizing parameters for improved accuracy.
+
+%================================================== Appendix on Simplification ========================
+\subsection*{Appendix on Simplification}
+
+Assume that the VLP provides position measurements \( z_x \) and \( z_y \) with variances \( R_x \) and \( R_y \) (which need not be equal initially), and that the robot moves a constant distance \( s \) between successive measurements so that
+\[
+s^2 = (\Delta x)^2 + (\Delta y)^2,
+\]
+where
+\[
+\Delta x = z_x - x_{\text{prev}}, \quad \Delta y = z_y - y_{\text{prev}}.
+\]
+The heading is computed as
+\[
+\theta = \arctan\left(\frac{\Delta x}{\Delta y}\right).
+\]
+
+Using error propagation, the variance in \(\theta\) is given by
+\[
+\sigma_\theta^2 \approx \left(\frac{\partial \theta}{\partial \Delta x}\right)^2 R_x + \left(\frac{\partial \theta}{\partial \Delta y}\right)^2 R_y.
+\]
+
+The partial derivatives are:
+\[
+\frac{\partial \theta}{\partial \Delta x} = \frac{1}{1 + \left(\frac{\Delta x}{\Delta y}\right)^2} \cdot \frac{1}{\Delta y}, \quad 
+\frac{\partial \theta}{\partial \Delta y} = -\frac{1}{1 + \left(\frac{\Delta x}{\Delta y}\right)^2} \cdot \frac{\Delta x}{\Delta y^2}.
+\]
+
+Substituting these into the error propagation formula, we have:
+\[
+\sigma_\theta^2 \approx \frac{R_x}{\Delta y^2 \left( 1 + \frac{\Delta x^2}{\Delta y^2} \right)^2} + \frac{\Delta x^2 \, R_y}{\Delta y^4 \left( 1 + \frac{\Delta x^2}{\Delta y^2} \right)^2}.
+\]
+
+Notice that:
+\[
+1 + \frac{\Delta x^2}{\Delta y^2} = \frac{\Delta y^2 + \Delta x^2}{\Delta y^2} = \frac{s^2}{\Delta y^2},
+\]
+so that
+\[
+\left(1 + \frac{\Delta x^2}{\Delta y^2}\right)^2 = \frac{s^4}{\Delta y^4}.
+\]
+
+Substituting this back into the expression for \(\sigma_\theta^2\):
+\[
+\sigma_\theta^2 \approx \frac{R_x}{\Delta y^2} \cdot \frac{\Delta y^4}{s^4} + \frac{\Delta x^2 \, R_y}{\Delta y^4} \cdot \frac{\Delta y^4}{s^4}
+= \frac{R_x \, \Delta y^2 + R_y \, \Delta x^2}{s^4}.
+\]
+
+Now, if we adopt the assumption that \( R_x = R_y = R_{\text{pos}} \), then
+\[
+R_x \, \Delta y^2 + R_y \, \Delta x^2 = R_{\text{pos}} \, (\Delta y^2 + \Delta x^2) = R_{\text{pos}} \, s^2.
+\]
+
+Thus, the variance in the derived heading simplifies to:
+\[
+\sigma_\theta^2 \approx \frac{R_{\text{pos}} \, s^2}{s^4} = \frac{R_{\text{pos}}}{s^2}.
+\]
+
+This shows that, under the assumption \( R_x = R_y = R_{\text{pos}} \), the covariance (variance) for the VLP-derived heading can be approximated as the common positional variance scaled by the inverse square of the constant step size \( s \).

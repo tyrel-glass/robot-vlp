@@ -11,7 +11,7 @@ import keras
 import robot_vlp.data.preprocessing as p
 import robot_vlp.data.odometer_path_navigation as pg
 import matplotlib.pyplot as plt
-from robot_vlp.modeling.rnn import ang_loss_fn
+
 
 
 app = typer.Typer()
@@ -87,7 +87,7 @@ def window_every_sample(arr, win_len):
     return X_all
 
 def load_model(model_name = 'model_02.keras'):
-    model = keras.models.load_model(MODELS_DIR / model_name,custom_objects={"ang_loss_fn": ang_loss_fn})
+    model = keras.models.load_model(MODELS_DIR / model_name)
     return model
 
 def min_ang_diff(ang1, ang2):

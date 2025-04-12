@@ -2,11 +2,10 @@
 % ===================================  Overivew of robot ===========================
 \subsection{Robot Functionality}
 
-The experimental robot is a custom-built, mobile platform designed for testing navigation strategies. It employs two 	extbf{Metal DC Geared Motors with Encoders} (SKU: FIT0521) for locomotion, driven by a 	extbf{TB6612FNG Dual DC Motor Driver}. The system is controlled by an 	extbf{Arduino Nano V3.0 (ATmega328P CH340 Version)}, with an 	extbf{ESP8266} module providing wireless TCP communication with a remote computer.
-
-\subsubsection{Motor Specifications}
-
-The robot's motors operate at 	extbf{6V} with a 	extbf{34:1 metal gearbox} and an integrated quadrature encoder, providing 	extbf{341.2 counts per revolution (PPR)} of the output shaft.
+The experimental robot is a custom-built, mobile platform designed for testing navigation strategies. 
+It employs two \textbf{Metal DC Geared Motors with Encoders} (SKU: FIT0521) for locomotion, driven by a \textbf{TB6612FNG Dual DC Motor Driver}. 
+The system is controlled by an \textbf{Arduino Nano V3.0 (ATmega328P CH340 Version)}, with an 	\textbf{ESP8266} module providing wireless TCP communication with a remote computer.
+The robot's motors operate at \textbf{6V} with a \textbf{34:1 metal gearbox} and an integrated quadrature encoder, providing \textbf{341.2 counts per revolution (PPR)} of the output shaft.
 
 \begin{table}[h]
     \centering
@@ -31,62 +30,7 @@ The robot's motors operate at 	extbf{6V} with a 	extbf{34:1 metal gearbox} and a
     \label{tab:motor_specs}
 \end{table}
 
-\subsubsection{Motor Driver Specifications}
 
-The 	extbf{TB6612FNG Dual DC Motor Driver} allows independent control of both motors, with low ON-resistance MOSFETs and multiple operating modes.
-
-\begin{table}[h]
-    \centering
-    \begin{tabular}{ll}
-        \toprule
-        \textbf{Specification} & \textbf{Value} \\
-        \midrule
-        Supply Voltage (VM) & 2.5V – 13.5V \\
-        Logic Voltage (Vcc) & 2.7V – 5.5V \\
-        Continuous Output Current & 1.2A per channel \\
-        Peak Output Current & 3.2A per channel \\
-        Output Low ON-Resistance & 0.5$\Omega$ (Upper + Lower, @VM $\geq$ 5V) \\
-        PWM Frequency & Up to 100 kHz \\
-        Operating Modes & CW, CCW, Short Brake, Stop \\
-        Protection Features & Thermal Shutdown, Low-Voltage Detection \\
-        Package Type & SSOP24 (0.65mm lead pitch) \\
-        Weight & 0.14g \\
-        \bottomrule
-    \end{tabular}
-    \caption{TB6612FNG Motor Driver Specifications}
-    \label{tab:motor_driver_specs}
-\end{table}
-
-\subsubsection{Microcontroller Specifications}
-
-The 	extbf{Arduino Nano V3.0} provides control and sensor processing capabilities, while an 	extbf{ESP8266} module enables TCP communication.
-
-\begin{table}[h]
-    \centering
-    \begin{tabular}{ll}
-        \toprule
-        \textbf{Specification} & \textbf{Value} \\
-        \midrule
-        Microcontroller & ATmega328P \\
-        USB Interface & CH340G \\
-        Operating Voltage & 5V \\
-        Input Voltage (Vin) & 7V – 12V \\
-        Digital I/O Pins & 14 (6 PWM output) \\
-        Analog Input Pins & 8 \\
-        Flash Memory & 32 KB (2 KB used by bootloader) \\
-        SRAM & 2 KB \\
-        EEPROM & 1 KB \\
-        Clock Speed & 16 MHz \\
-        Communication Interfaces & UART, I2C, SPI \\
-        PWM Channels & 6 \\
-        ADC Resolution & 10-bit \\
-        Dimensions & 45 mm $\times$ 18 mm \\
-        Weight & 7g \\
-        \bottomrule
-    \end{tabular}
-    \caption{Arduino Nano V3.0 Specifications}
-    \label{tab:arduino_nano_specs}
-\end{table}
 
 \subsection{Robot Navigation and Control}
 
@@ -96,7 +40,8 @@ The robot operates using two primary movement types:
     \item \textbf{In-place rotation}: Wheels rotate in opposite directions, adjusting the robot’s heading without displacement.
 \end{itemize}
 
-Navigation is performed by sequentially reaching predefined target points $P_1, P_2, \dots, P_n$. Given physical constraints, a threshold distance $d_t$ defines successful target acquisition.
+Navigation is performed by sequentially reaching predefined target points $P_1, P_2, \dots, P_n$. 
+Given physical constraints, a threshold distance $d_t$ defines successful target acquisition.
 
 The robot’s state vector is given by:
 \begin{equation}
@@ -106,27 +51,21 @@ where $(x, y)$ represents the robot’s position and $\theta$ is its orientation
 
 \subsubsection{Embedded Control System}
 
-The control system ensures accurate movement through encoder-based feedback and proportional speed adjustments:
-\begin{enumerate}
-    \item Quadrature encoders provide real-time wheel rotation data.
-    \item Interrupt-driven encoder processing ensures precise tracking.
-    \item PWM-based motor control dynamically adjusts speed to maintain balance.
-    \item Serial debugging enables real-time parameter tuning.
-\end{enumerate}
+The microcontroller implements a control system that uses encoder-based feedback and proportional speed adjustments.
+Real-time wheel rotation is measured by the quadrature encoders driving interrupts and a PWM-based motor control dynamically adjusts speed to maintain balance.
 
-The motion execution is achieved through:
-\begin{itemize}
-    \item \textbf{Proportional Control}: Encoder differences adjust PWM signals dynamically.
-    \item \textbf{Independent Motor Stopping}: Each motor stops independently upon reaching target encoder counts.
-    \item \textbf{Error Correction}: PWM adjustments compensate for discrepancies in motor performance.
-\end{itemize}
-
-This embedded system enables precise and reliable motion control, allowing the robot to navigate autonomously while compensating for mechanical and environmental variances.
-
+The controller adjusts motor power to keep the wheels rotating at a target speed, but also to minimise the differnce in total rotation between the wheels.
+This means that at a given point of time, if a wheel has traveled a larger rotational angle that the other despite currently having equal speeds the power will be reduced.
+Each wheel also stops independently once the total target encoder count has been reached.
 
 
 % ================================= VLP SYSTEM =========================
 \subsection{VLP system overview}
+\begin{figure}[h!]
+    \includegraphics[scale = 0.3]{{figures/vlp_function}}
+    \caption{Overview of VLP system}
+    \label{fig:acc_grid}
+    \end{figure}
 
 The VLP system consists of four transmitters constructed with consumer grade 10W LED luminaires model REX100DL WHWWDIM. 
 The system uses discrete tone multiplexing based on IM/DD.
@@ -137,201 +76,153 @@ The input of the modulator circuit is connected to a function generator which su
 
 The receiver tag consists of a photodiode, trans-impedance amplifier, and active high pass filter. 
 The filter eliminates 100 Hz power-line flicker and the DC manifestation of the ambient light. 
-The ambient light thus has no noticeable impact on the performance of the developed VLP as long as the light sensor is not saturated. 
 A simple inverting amplifier stage then strengthens the filter output to a level suitable for Analog to Digital Conversion (ADC). 
 This signal is then fed to a microcontroller that carries out the ADC. 
-A microcontroller is used to facilitate the high sampling rate of 50 kHz.
+The ADC sampling rate is 50 kHz.
 
 A VLP measurment is taken by collecting 512 ADC samples, which takes aproximatly 10.4ms at a 50kHz sample rate. 
-The sample is then sent over UART to the ESP8266 where it is sent over WiFi using TCP to python scrip running on a host computer.
+The sample is then sent over UART to an ESP8266 where it is sent over WiFi using TCP to python scrip running on a host computer.
 Processing of the ADC values is implemented on the host computer.
 The signal is centered by subtracting the mean, normalized by dividing by the maximum value, and hanning windowed. 
-The FFT of the signal is then taken. 
- 
+The FFT of the signal is then taken, and the coresponding LED frequency peaks are extracted by searching for the largest peak within 8 FFT bins of the target frequency.
 
 
-An OpenBuilds BlackBox Motion Control System (MCS) with Grbl firmware controls the stepper motors
+\textbf{Predicting location from FFT peaks}
+A MLP uses a vector of the four RSS LED values as input, and ouputs a 2D x, y position vector. 
+The input data was scaled using a standard scaler.
+The model architecture comprises 200 input neurons, a second dense layer with 50 neurons, and a final hidden layer wtih 100 neurons. 
+Dropout layers with a value of 0.1 are used before and after the final hidden layer.
+All dense layers use ReLU as the activation function, L2 regularlisation (value of 0.001) and batch normalisation. 
+The output layer has a linear activation function.
+
+
+\textbf{Automated collection of training data}
+To enable accurate collection of a large number of VLP RSS readings at known locations a CNC platform was used.
+The platform was a 2-axis belt driven setup using three Nema 17 stepper motors.
+An OpenBuilds BlackBox Motion Control System (MCS) with Grbl firmware controled the system and a python scipt running on a host computer communicated commands via uart to the system.
+The platform has a span of 1000mm x 900mm
+
+\textbf{VLP fingerprint data collection}
+Two seperate VLP datasets were collected, one for training and another for validation.
+The training set comprised of 1517 collected points which were equally spaced 25mm apart spanng 1000mm x 900mm.
+At each point the VLP measurment was repeated 10 times, the RSS values extraced and then averaged to get the RSS value for that location.
+
+The validation locations comprised 528 points that were generated by a uniform grid spacing of 40mm augmented with random offsets in the x and y components. 
+The random offsets were drawn from a uniform distribution between 0 and the 40mm step size apart from on the edges which were clamped to ensure the locaitons remained in bounds of the CNC platform.
+The random offsets were used to ensure that the VLP model would not tend to 'clamp' predictions to a set grid.
+
+\begin{figure}[h!]
+    \includegraphics[scale = 0.8]{{figures/methodology-CNC_fingerprint}}
+    \caption{Location of VLP training and validation points}
+    \label{fig:acc_grid}
+    \end{figure}
+
+\begin{figure}[h!]
+    \includegraphics[scale = 0.6]{{figures/methodology-CNC_3d_rss_plot}}
+    \caption{RSS values from training data}
+    \label{fig:acc_grid}
+    \end{figure}
+
+
+\textbf{Training the VLP model}
+The model was trianed using the training dataset, with early stopping based on performance on the validation set with patence of 30 epochs. 
+An Adam optimised was used with an exponetial decay learning rate schedule with inital value of 0.01 and decay rate of 0.995.
+The batch size was 32 and mean squared error was used for the loss function.
+
+\textbf{VLP model performance}
+The model acheived a average error of 21.0mm with a standard deviation of 10.3mm on the validation dataset.
+
+\begin{figure}[h!]
+    \includegraphics[scale = 0.6]{{figures/methodology-CNC_validation_errors}}
+    \caption{Distribution of VLP errors}
+    \label{fig:acc_grid}
+    \end{figure}
+
+
+%-------------------------- Vive tracking  ------------------------
+\subsubsection{Use of HTC vive for groundtruth tracking}
+
+The HTC Vive tracking system was employed to accurately determine the robot's position and heading. 
+Its effectiveness in research settings has been well established, with previous work reporting a median tracking accuracy of 4.24~mm. 
+The system consists of two fixed ``Lighthouse'' base stations and a mobile Tracker.
+
+The Tracker provides six degrees of freedom (6~DoF) localization---delivering both position (\(X\), \(Y\), \(Z\)) and orientation (\(\gamma\), \(\beta\), \(\alpha\)). 
+It connects via Bluetooth to a wireless dongle attached to a host PC running SteamVR (\url{https://store.steampowered.com/steamvr}, accessed on 30 March 2021). 
+The Python library \texttt{pyopenvr} supplies bindings for the OpenVR SDK (used by SteamVR), which allows for scripted control of the tracking system. 
+Furthermore, the Triad OpenVR wrapper simplifies this interface by providing a single Python function to retrieve the Tracker's current position.
+
+The Tracker's location is reported in a local coordinate system that is centered on the first base station, with its axes aligned to that station's orientation. 
+This setup necessitates a transformation from the Tracker's native reference frame to the room's coordinate system. 
+To derive this transformation, the Tracker is placed at known positions within the test environment, and corresponding points are recorded in both coordinate frames. 
+The resulting mapping from the Vive system to room coordinates is then applied to all subsequent positional data.
+
+The CNC machine was used to accurately position the Vive Tracker when capturing the calibration points, which were set at (900, 0), (0, 0), and (0, 900). 
+At each of these positions, 10 readings were taken and averaged to compute the transformation. 
+A new transformation was calculated at the beginning of each data collection set to eliminate errors resulting from any movement of the Vive base stations.
+
+After collecting the transformation points, the Vive Tracker was transferred to a platform on the mobile robot at the same height, with its orientation fixed by two mounting pins. 
+The Tracker's orientation center is located at the middle of the device, where a mounting pin hole exists. 
+In contrast, the center of the mobile robot is defined as the midpoint between its two drive wheels along the axle. 
+Since the VLP photodiode receiver is positioned at the robot's center (to support VLP-based estimation), the Vive Tracker was offset by placing it 7.0~mm in front of the robot's center. 
+Consequently, the Vive-reported coordinates (\(x_{\text{vive}}\) and \(y_{\text{vive}}\)) must be translated to reflect the robot center's location. 
+Using the Vive's yaw measurement---which matches the robot's yaw due to the Tracker's fixed orientation---the mapping is performed as follows:
+
+\[
+\text{robot\_x} = \text{vive\_x} + 0.07 \times \sin(\text{vive\_yaw})
+\]
+\[
+\text{robot\_y} = \text{vive\_y} + 0.07 \times \cos(\text{vive\_yaw})
+\]
+
+
+
+
+
 
 %-------------------------- GENERATED PATHS ------------------------
-\subsubsection{Generated paths}
-The initial training dataset is created by the simulated robot tracing various paths using odometry with simulated errors to navigate. 
-The navigation targets are created by specifying a circle with radius $r$, and then specifying a number of points; $n$ where $2<=n<12$ which are then equally spaced around the circle. 
-The points are then assigned to be reached clockwise, anticlockwise, or randomly (where the list of targets is shuffled). 
-By specifying a range of values for $r$, with a range of $n$, three different ordering methods, and (number of reps = 4) repetitions for each path,  (number of paths = 900) different navigation paths are generated.
+\subsubsection{Collecting navigation data}
+The initial training dataset is created by using the real time vive location readings to navigate. 
+Target points were randomly generated which the robot would then navigate to. 
+To navigate to a point, the robot will compare its bearing to that of the target, make a heading correction and continue to step in that direction.
+This is continued until the robot is within a set threshold from the target point.
+Once a target point is reached, the next randomly generated point is navigated to.
 
+Each step of the robot consists of taking a new vive reading to determine the groundtruth locaiton and heading of the robot. 
+A VLP reading is then taken, which comprises of three sequentianl 512 adc samples. 
+The difference between the current heading provided by the vive and the heading towords the target is then calculated
+(math here for the calculation)
+If the angle is greated than 20 degrees the robot will then initiate a rotation of the required amount. 
+Odometry is used to complete the requried turn, with a mapping between encoder step count and actual heading change estimated from a data collection trial. 
+After completing the turn the robot then moves forward a set step size which is calibrated to be 100mm. 
 
-\begin{tabular}{ll}
-\toprule
-Description & values \\
-\midrule
-Number of points in target path & $1-12$ \\
-Order in which points are traversed & $\{Clockwise, Anticlockwise, Shuffled\}$ \\
-Accuracy of VLP model & $\{Low, Medium, High\}$ \\
-Accuracy of encoder & $\{Low, Medium, High\}$ \\
-Number of times the same path is repeated & 4 \\
-\bottomrule
-\end{tabular}
-
+The purpose of the data collection is to build up a database of encoder generated movements, turns and steps, along with a VLP location estimates, and the accurate groundtruth for position and heading.
 
 
 
-\begin{figure}[h!]
-\includegraphics[scale = 0.7]{../figures/nav_points_ex}
-\caption{Example of three different navigation paths}
-\label{fig:nav_points_ex}
-\end{figure}
-
-%-------------------------- Robot performance ------------------------
-\textbf{Robot navigation performance}
-To navigate to each of the target points the simulated robot uses odometry alone. 
-From the robot's perspective the path it traces out is error free.
-To navigate to a point, the robot will compare its bearing to that of the target, make a heading correction and continue to step in the same direction until it thinks it hits its target. 
-The errors in the encoder lead the actual path traced by the robot to deviate from the ideal.
-The robot is set to repeat the series of target points until the position errors accumulate to the point at which the actual coordinate of the robot reaches the limit of the VLP dataset.
-The level of encoder error has a major impact on navigation performance, as can be seen by figure x.
+% %-------------------------- Dataset preparation ------------------------
+% \subsubsection{Dataset preparation}
+% The paths traced by the simulated robot during a simulation run enable the creation of a dataset suitable for training the navigation model. 
+% The targets (or labels) for the dataset are the resulting $x$ and $y$ coordinates, along with the heading $\alpha$ at the end of each movement step (heading correction followed by a step).
+% The input data consists of the $x$, $y$ location, and heading $\alpha$ for both the encoder-derived estimates; $x_e, y_e, \theta_e$, and the VLP-derived estimates; $x_{vlp}, y_{vlp}, \theta_{vlp}$.
 
 
-\begin{figure}[h!]
-\includegraphics[scale = 0.5]{../figures/encoder_drift}
-\caption{Demonstration of encoder error}
-\label{fig:encoder_drift}
-\end{figure}
+% \begin{tabular}{l|lll|llllll}
+% \toprule
+% Point \# & \multicolumn{3}{c}{Targets} & \multicolumn{6}{c}{Input}                                          \\
+% \midrule
+%      & \boldmath$x$     & \boldmath$y$     & \boldmath$\theta$     & \boldmath$x_e$   & \boldmath$y_e$   & \boldmath$\theta_e$   & \boldmath$x_{vlp}$   & \boldmath$y_{vlp}$   & \boldmath$\theta_{vlp}$   \\
+% \midrule
+% $1$       &$x^1$      & $y^1$     & $\theta^1$     & $x_e^1$   & $y_e^1$   & $\theta_e^1$   & $x_{vlp}^1$   & $y_{vlp}^1$   & $\theta_{vlp}^1$   \\
+% $2$       &$x^2$      & $y^2$     & $\theta^2$     & $x_e^2$   & $y_e^2$   & $\theta_e^2$   & $x_{vlp}^2$   & $y_{vlp}^2$   & $\theta_{vlp}^2$   \\
 
-The level of VLP error also has a large impact on positioning performance.
-
-\begin{figure}[h!]
-    \includegraphics[scale = 0.5]{../figures/vlp_drift}
-    \caption{Demonstration of VLP error (note: this data need to be recalculated)}
-    \label{fig:vlp_drift_1}
-    \end{figure}
-
-%-------------------------- Dataset preparation ------------------------
-\subsubsection{Dataset preparation}
-The paths traced by the simulated robot during a simulation run enable the creation of a dataset suitable for training the navigation model. 
-The targets (or labels) for the dataset are the resulting $x$ and $y$ coordinates, along with the heading $\alpha$ at the end of each movement step (heading correction followed by a step).
-The input data consists of the $x$, $y$ location, and heading $\alpha$ for both the encoder-derived estimates; $x_e, y_e, \theta_e$, and the VLP-derived estimates; $x_{vlp}, y_{vlp}, \theta_{vlp}$.
-
-
-\begin{tabular}{l|lll|llllll}
-\toprule
-Point \# & \multicolumn{3}{c}{Targets} & \multicolumn{6}{c}{Input}                                          \\
-\midrule
-     & \boldmath$x$     & \boldmath$y$     & \boldmath$\theta$     & \boldmath$x_e$   & \boldmath$y_e$   & \boldmath$\theta_e$   & \boldmath$x_{vlp}$   & \boldmath$y_{vlp}$   & \boldmath$\theta_{vlp}$   \\
-\midrule
-$1$       &$x^1$      & $y^1$     & $\theta^1$     & $x_e^1$   & $y_e^1$   & $\theta_e^1$   & $x_{vlp}^1$   & $y_{vlp}^1$   & $\theta_{vlp}^1$   \\
-$2$       &$x^2$      & $y^2$     & $\theta^2$     & $x_e^2$   & $y_e^2$   & $\theta_e^2$   & $x_{vlp}^2$   & $y_{vlp}^2$   & $\theta_{vlp}^2$   \\
-
-$\vdots$ & \multicolumn{3}{c}{$\vdots$} & \multicolumn{6}{c}{$\vdots$}               \\
-$n$       & $x^n$    & $y^n$   & $\theta^n$   & $x_e^n$ & $y_e^n$ & $\theta_e^n$ & $x_{vlp}^n$ & $y_{vlp}^n$ & $\theta_{vlp}^n$ \\
-\bottomrule
-\end{tabular}
-
-The simulation is run (Number of simulation runs) with the number of steps per run ranging from () to ().
-The total number of steps in the dataset was ()
-
-Scaling
-
-Windowing
-
-%-------------------------- Model architecture ------------------------
-\subsubsection{Model architecture}
-
-% \noindent\textbf{Simple MLP for comparison}
-
-% \noindent\textbf{RNN}
-
-Models were built using the tensorflow keras library. 
-The overarching model architecture was a sequence to vector RNN, with input shape (windowlen, 6).
-This meant the input of the model was an array that contained odometer and vlp estimates for the current location and orientation, back to n steps in the past. 
-The model output was the current x and y location, as well as the heading. 
-To output the coordinates, and output layer of 2 neurons was used with a linear activation function so the outputs were not bounded. 
-For the heading estimate the bearing angle was deconstructed into two components. 
-The components were the $\sin$ and $\cos$ of the bearing.
-This deconstruction was done avoid the issue of the angle wrapping around causing discontinuities when the bearing fluctuated around $-180\degree$ to $180\degree$.
-It also has the benefit of allowing cosine similarity to be used as the loss function which is included in the keras library. 
-The cosine similarity computes the cosine of the angle between two vectors, which is 1 for vectors pointing in the same direction, and -1 for opposite directions. 
-When implemented by keras as a loss the sign is inverted, so model training will converge towards similar vector directions.
-
-Constructing a multivariate model requires the use of the keras functional API. 
-It also requires combining two loss functions, one for the angle (cosine similarity) and one for the location (mean squared error).
-The losses are combined using a weighted sum allowing for variation in which navigation task is prioritised.
-
-\noindent\textbf{Hyperparameter tuning}
-Even with a relatively simple RNN architecture there are many hyperparameters needing to be selected: 
-
-\begin{tabular}{ll}
-    \toprule
-    Description & values \\
-    \midrule
-    Number of layers & $1-4$ \\
-    Neurons per layer & $1-50$ \\
-    Learning rate & $1e^{-4} - 1e^{-2}$ \\
-    Optimizer & $\{SGD, Adam\}$ \\
-    \bottomrule
-    \end{tabular}
-
-
-Hyperparameter tuning was done using the keras implementation of hyperband tuner.
-The process entails training a large number of models with varying hyperparameters for only a few epochs. 
-The best performing models (1/factor) are then trained for another round with more epochs. 
-The process is repeated until the best performing model is left.
-The tuning configuration is as follows:
+% $\vdots$ & \multicolumn{3}{c}{$\vdots$} & \multicolumn{6}{c}{$\vdots$}               \\
+% $n$       & $x^n$    & $y^n$   & $\theta^n$   & $x_e^n$ & $y_e^n$ & $\theta_e^n$ & $x_{vlp}^n$ & $y_{vlp}^n$ & $\theta_{vlp}^n$ \\
+% \bottomrule
+% \end{tabular}
 
 
 
-The best performing parameters were found to be ...
-The model was then retrained using early stopping to halt when the performance on the validation data decreased. 
-This was for x epochs.
 
-\subsubsection{Model performance - trained data}
-
-The following figures demonstrate the model being applied to a path traced out by odometry with various VLP and encoder errors. 
-\begin{figure}[h!]
-    \includegraphics[scale = 0.5]{../figures/pre_model_ex1}
-    \caption{Demonstration of model prediction performance}
-    \label{fig:vlp_drift_2}
-    \end{figure}
-
-\begin{figure}[h!]
-    \includegraphics[scale = 0.5]{../figures/pre_model_ex2}
-    \caption{Demonstration of model prediction performance}
-    \label{fig:vlp_drift_3}
-    \end{figure}
-
-\begin{figure}[h!]
-    \includegraphics[scale = 0.5]{../figures/pre_model_ex3}
-    \caption{Demonstration of model prediction performance}
-    \label{fig:offline_model_test}
-    \end{figure}
-
-When tested over all points in the testing set, the following performance was achieved. 
-\begin{figure}[h!]
-    \includegraphics[scale = 0.5]{../figures/offline_model_test.png}
-    \caption{Demonstration of model prediction performance}
-    \label{fig:offline_model_test_2}
-    \end{figure}
-
-
-% \begin{figure}[h!]
-% \includegraphics[scale = 0.3]{{../figures/acc_grid}}
-% \caption{grid of errors}
-% \label{fig:acc_grid}
-% \end{figure}
-
-
-
-% \begin{figure}[h!]
-% \includegraphics[scale = 0.3]{../figures/err_grid}
-% \caption{grid of errors}
-% \label{fig:err_grid}
-% \end{figure}
-
-
-
-\subsubsection{Model performance - live navigation}
-Once trained on generated data from odometry navigation, the model was then used for live navigation. 
-This worked by using the models location and heading estimates to determine the correction angle needed, as well as when the target position was reached. 
-Several different paths were tested
 
 % ===================================================================================================================================================
 % ================================================= METHODOLOGY END =================================================================================

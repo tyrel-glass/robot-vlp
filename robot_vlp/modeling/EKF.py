@@ -170,10 +170,6 @@ def run_ekf(df, parameters, err_stats):
     Q_dist = err_stats['Q_dist']
 
 
-    # Define constant process noise covariance matrix Q (motion space)
-    step_variance = Q_dist * Q_scale_d
-    heading_variance = Q_theta * Q_scale_theta
-    Q_constant = np.diag([step_variance, heading_variance])
 
     # Define measurement noise covariance matrix R
     
@@ -211,8 +207,26 @@ def run_ekf(df, parameters, err_stats):
         d = step['encoder_location_change']
         delta_theta = step['encoder_heading_change_rad']
 
+# --------------------   dynamic noise adjustment for heading --------
+        # Conditionally adjust process noise for heading:
+        if abs(delta_theta) < (1 / 180 * np.pi):
+            # Use lower heading noise when no significant turn occurs
+            heading_variance = Q_theta_no_turn * Q_scale_theta
+ 
+
+        else:
+            heading_variance = Q_theta * Q_scale_theta
+
+        # Compute step variance for distance (remains constant)
+        step_variance = Q_dist * Q_scale_d
+
+        # Create a local process noise covariance matrix for this iteration
+        Q_step = np.diag([step_variance, heading_variance])
+
+# ----------------------------------------------------------------------------
+
         # EKF Prediction
-        x_pred, P_pred = ekf_predict_with_heading(x, P, d, delta_theta, G, Q_constant)
+        x_pred, P_pred = ekf_predict_with_heading(x, P, d, delta_theta, G, Q_step)
 
         # EKF Update (VLP sensor)
         z_meas = np.array([step['vlp_x_hist'], step['vlp_y_hist']])
@@ -399,7 +413,7 @@ def tune_ekf(df_lst, prev_result=None, initial_guess=None):
         popsize=20,
         mutation=(0.95, 1.99),
         recombination=0.9,
-        maxiter=5,
+        maxiter=500,
         tol=1e-5,
         disp=True,
         callback=progress_callback,

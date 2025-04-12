@@ -1,135 +1,46 @@
-\section{Overview of the Multi-Layer Perceptron (MLP) for Robot Positioning}
 
-\subsection{Introduction}
-The implemented Multi-Layer Perceptron (MLP) model is designed to enhance robot localization accuracy by integrating data from a Visual Light Positioning (VLP) system and wheel encoder measurements. The model predicts the robot’s position \((x, y)\) and heading \((\theta)\) based on historical sensor data. Hyperparameter tuning is performed using KerasTuner, while training is supported by adaptive learning rate adjustments and early stopping mechanisms.
+\section{RNN}
 
-\subsection{Input Data and Preprocessing}
-The input features to the model include:
+
+
+
+A staged tuning approach that breaks down the hyperparameter search space into manageable subsets was used.
+
+\section{Staged Hyperparameter Tuning Approach}
+
+\subsection{Stage 1: Architecture Tuning}
+In the first stage, the focus is on identifying the optimal network architecture. Key hyperparameters include:
 \begin{itemize}
-    \item VLP-provided position \((x_{\text{vlp}}, y_{\text{vlp}})\) and heading
-    \item Encoder-based heading and position estimates
-    \item Historical heading changes from both VLP and encoder measurements
+    \item \textbf{Sequence Length:} The number of timesteps used as input.
+    \item \textbf{Number of Layers:} The depth of the RNN, tuned over a discrete range.
+    \item \textbf{Units per Layer:} The number of neurons in each recurrent layer, often sampled on a logarithmic or exponential scale (e.g., \{2, 4, 8, 16, 32, 64, 128, 256\}).
+    \item \textbf{Layer Type:} Choice between LSTM and GRU.
 \end{itemize}
 
-Prior to training, the dataset undergoes preprocessing steps, including:
+\subsection{Stage 2: Regularization Tuning}
+Once a promising architecture is identified, the next stage is to optimize regularization strategies to prevent overfitting. This involves:
 \begin{itemize}
-    \item Removal of missing values
-    \item Standardization using \textit{StandardScaler} for feature normalization
-    \item Splitting into training, validation, and test sets
+    \item \textbf{Dropout and Recurrent Dropout:} Tuning dropout rates for both inputs and recurrent connections.
+    \item \textbf{Normalization Techniques:} Evaluating the impact of batch normalization versus layer normalization.
 \end{itemize}
 
-\subsection{Network Architecture}
-The MLP is a fully connected feedforward neural network with a tunable architecture determined via hyperparameter optimization. The key components include:
+\subsection{Stage 3: Optimization Tuning}
+With the architecture and regularization settings fixed, the third stage focuses on the training dynamics:
 \begin{itemize}
-    \item \textbf{Input Layer}: Accepts an 8-dimensional feature vector
-    \item \textbf{Hidden Layers}: 
-    \begin{itemize}
-        \item Configurable number of layers (1--3), with neurons ranging from 32 to 256 per layer
-        \item Activation functions: ReLU, Tanh, ELU, or Leaky ReLU (selected via hyperparameter tuning)
-        \item Optional batch normalization for improved convergence
-        \item Dropout layers (0--50\%) for regularization
-    \end{itemize}
-    \item \textbf{Output Layers}:
-    \begin{itemize}
-        \item Position prediction \((x, y)\) using a linear activation
-        \item Heading prediction \((\sin(\theta), \cos(\theta))\) using a Tanh activation to handle circular properties
-    \end{itemize}
+    \item \textbf{Learning Rate and Schedulers:} Tuning the initial learning rate and selecting between constant, exponential, or cosine decay schedules.
+    \item \textbf{Optimizer Choice:} Evaluating different optimizers such as Adam, RMSprop, Nadam, and SGD.
 \end{itemize}
 
-\subsection{Loss Functions and Optimization}
-The model is trained using a multi-output loss function:
-\begin{itemize}
-    \item Mean Squared Error (MSE) for position prediction
-    \item Either Cosine Similarity Loss or MSE for heading estimation (hyperparameter-dependent)
-\end{itemize}
+\subsection{Stage 4: Additional Parameter Tuning}
+Finally, additional hyperparameters, such as sequence length (if not fixed previously) and loss weighting for multi-output models, are fine-tuned. For instance, if one output's loss is naturally higher than the other, loss weights can be adjusted to balance their contributions during training.
 
-The optimizer is selected from Adam, RMSprop, or Nadam, with the learning rate optimized in the range \([10^{-5}, 10^{-2}]\). A ReduceLROnPlateau callback dynamically adjusts the learning rate during training based on validation loss trends.
+\section{Implementation}
+The staged tuning approach is implemented using Keras Tuner. Random search and grid search methods are applied selectively based on the size of the hyperparameter space. For example, when only a small number of sequence length values (e.g., \{10, 20, 30, 40, 50\}) need to be explored, grid search is employed to exhaustively evaluate each option.
 
-\subsection{Hyperparameter Tuning}
-Hyperparameter tuning is conducted using \textit{Hyperband} in KerasTuner, optimizing:
-\begin{itemize}
-    \item Number of layers and neurons per layer
-    \item Activation functions
-    \item Regularization parameters (dropout rate, batch normalization)
-    \item Learning rate and optimizer selection
-    \item Heading loss function choice (MSE or cosine similarity)
-\end{itemize}
+\section{Conclusion}
+The staged hyperparameter tuning strategy allows for a more systematic and interpretable optimization process. By decomposing the overall tuning problem into distinct stages, it becomes easier to isolate the impact of different hyperparameter groups on model performance. This approach not only improves efficiency but also provides deeper insights into the contributions of each model component.
 
-\subsection{Training and Evaluation}
-The optimal hyperparameters are determined, and the model is trained using:
-\begin{itemize}
-    \item 300 epochs with a batch size of 16
-    \item Early stopping (patience = 10) to prevent overfitting
-    \item A validation split of 20\%
-    \item Learning rate decay via ReduceLROnPlateau
-\end{itemize}
-
-\subsection{Performance Metrics}
-The trained model is evaluated on the test dataset using:
-\begin{itemize}
-    \item Mean absolute position error (meters)
-    \item Mean absolute heading error (degrees)
-\end{itemize}
-
-\subsection{Conclusion}
-This MLP-based approach provides an effective method for improving robot localization by integrating VLP and encoder data. The use of hyperparameter tuning ensures optimal model performance, while adaptive training strategies enhance robustness against sensor noise and environmental variations.
+\bibliographystyle{plain}
+\bibliography{references}
 
 
-
-
-\section{Recurrent Neural Network (RNN) Implementation and Hyperparameter Tuning}
-
-\subsection{Overview}
-This section presents a recurrent neural network (RNN) implementation optimized for robot positioning using encoder and visible light positioning (VLP) data. The model is designed to estimate the robot's position and heading through a multi-layer architecture incorporating LSTM, GRU, or bidirectional LSTM (BiLSTM) layers. The hyperparameters are optimized using \textit{Keras Tuner} to improve accuracy and generalization.
-
-\subsection{Model Architecture}
-The network consists of multiple recurrent layers, allowing the model to learn temporal dependencies in the robot's movement data. The architecture is defined as follows:
-
-\begin{itemize}
-    \item \textbf{Input Layer:} The model takes an input sequence of 8 features representing historical encoder and VLP data.
-    \item \textbf{Recurrent Layers:} The network supports up to three stacked recurrent layers, where each layer type is selected as either LSTM, GRU, or BiLSTM. 
-    \item \textbf{Normalization:} Each layer optionally applies batch normalization or layer normalization to stabilize training.
-    \item \textbf{Dropout Regularization:} Dropout and recurrent dropout are applied within each layer to mitigate overfitting.
-    \item \textbf{Skip Connections:} Residual connections are introduced between recurrent layers to enhance gradient flow in deep architectures.
-    \item \textbf{Attention Mechanism:} An optional self-attention mechanism is included to enhance the network’s ability to focus on critical time steps.
-    \item \textbf{Output Layers:} The model produces two outputs:
-    \begin{enumerate}
-        \item \textbf{Position Output:} A dense layer with a linear activation function to predict the robot's $(x, y)$ coordinates.
-        \item \textbf{Heading Output:} A dense layer with a \textit{tanh} activation function to predict the robot's orientation.
-    \end{enumerate}
-\end{itemize}
-
-\subsection{Hyperparameter Optimization}
-To optimize the model architecture, \textit{Keras Tuner} is used with the \textit{Hyperband} search strategy. The following hyperparameters are tuned:
-
-\begin{itemize}
-    \item \textbf{Number of recurrent layers:} \{1, 2, 3\}
-    \item \textbf{Recurrent layer type:} \{LSTM, GRU, BiLSTM\}
-    \item \textbf{Number of units per layer:} \{32, 64, 128, 256\}
-    \item \textbf{Dropout rate:} \{0.0 to 0.5\}
-    \item \textbf{Recurrent dropout rate:} \{0.0 to 0.5\}
-    \item \textbf{Use of batch normalization:} \{True, False\}
-    \item \textbf{Use of layer normalization:} \{True, False\}
-    \item \textbf{Use of attention mechanism:} \{True, False\}
-    \item \textbf{Learning rate:} \{1e-5 to 1e-2\}
-    \item \textbf{Optimizer:} \{Adam, RMSprop, Nadam, SGD\}
-\end{itemize}
-
-\subsection{Loss Function and Training}
-The model is trained using a combined loss function:
-\begin{itemize}
-    \item \textbf{Huber Loss:} Used for both position and heading estimation, as it is more robust to outliers than Mean Squared Error (MSE).
-    \item \textbf{Loss Weights:} The position and heading losses are weighted equally.
-\end{itemize}
-The optimization process employs early stopping and adaptive learning rate reduction to prevent overfitting and enhance convergence.
-
-\subsection{Evaluation and Results}
-The trained model is evaluated on a separate test set, measuring:
-\begin{itemize}
-    \item \textbf{Position Error:} Mean Euclidean distance between predicted and actual $(x, y)$ positions.
-    \item \textbf{Heading Error:} Mean absolute difference between predicted and actual orientation angles.
-\end{itemize}
-The best-performing model is selected based on the lowest validation loss.
-
-\subsection{Conclusion}
-This RNN-based approach for robot localization leverages hyperparameter tuning to optimize architecture choices, leading to improved prediction accuracy and generalization. Future work may incorporate transformer-based sequence modeling for further enhancements.

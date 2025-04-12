@@ -28,8 +28,9 @@ def main(
     # output_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
     # ----------------------------------------------
 ):
+
+    files = [f'exp1_{i}' for i in range(1,13)]
     
-    files = ['exp1_9', 'exp1_10', 'exp1_11','exp1_12']
     # ---- REPLACE THIS WITH YOUR OWN CODE ----
     logger.info("Processing experment dataset")
 
@@ -87,7 +88,23 @@ def process_robot_exp_file(input_file, vlp_model):
     no_turn_filt =  df['last_cmd'].str.contains('MOVE:') & df['last_cmd'].shift(1).str.contains('MOVE:')
     df.loc[no_turn_filt, 'encoder_heading_change_step'] = 0
     df['encoder_heading_change_step'] = df['encoder_heading_change_step'].ffill() 
-    df['encoder_heading_change'] = df['encoder_heading_change_step'] / enc_per_degree
+
+# new test----------------
+# df['encoder_heading_change'] = df['encoder_heading_change_step'] / enc_per_degree
+# new test----------------
+    def steps_to_ang(steps):
+        acw_line = np.poly1d([0.18793026, -0.89767568])
+        cw_line  = np.poly1d([0.18921404,  1.12704513])
+        if steps > 0:
+            ang = cw_line(steps)
+        elif steps < 0:
+            ang = acw_line(steps)
+        else:
+            ang = 0
+        return ang
+    df['encoder_heading_change'] = df['encoder_heading_change_step'].apply(steps_to_ang)
+# new test end----------------
+    
 
 
     #======================== Drop the move rows ============================
@@ -205,7 +222,7 @@ from scipy.interpolate import griddata
 
 def plot_surface_irregular(df, cmap='viridis', grid_resolution=100):
     # Creating 4 subplots for each target peak column
-    fig = plt.figure(figsize=(16, 12))
+    fig = plt.figure(figsize=(8, 6))
     target_peaks = ['L1', 'L2', 'L3', 'L4']
 
     # Generate a regular grid for interpolation
@@ -240,6 +257,7 @@ def plot_surface_irregular(df, cmap='viridis', grid_resolution=100):
     # Adjust layout and show the plot
     plt.tight_layout()
     plt.show()
+    return fig
 
 
 

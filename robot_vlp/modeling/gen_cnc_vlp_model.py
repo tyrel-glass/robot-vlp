@@ -65,12 +65,12 @@ def main(
     mlp_high_acc_model, mlp_high_acc_scaler  = build_and_train_model(X_train, y_train, X_valid, y_valid,partial_data=False)
     mlp_high_acc_model.save(output_path / model_high_acc_path, save_format = 'tf' )
     
-    model_low_acc_path = "low_acc_model.keras"
-    mlp_low_acc_model, mlp_low_acc_scaler = build_and_train_model(X_train, y_train, X_valid, y_valid,partial_data=True)
-    mlp_low_acc_model.save(output_path / model_low_acc_path, save_format = 'tf')
+    # model_low_acc_path = "low_acc_model.keras"
+    # mlp_low_acc_model, mlp_low_acc_scaler = build_and_train_model(X_train, y_train, X_valid, y_valid,partial_data=True)
+    # mlp_low_acc_model.save(output_path / model_low_acc_path, save_format = 'tf')
 
     model_dic = {
-        'low_acc': {'scaler': mlp_low_acc_scaler, 'model_path': model_low_acc_path},
+        # 'low_acc': {'scaler': mlp_low_acc_scaler, 'model_path': model_low_acc_path},
         'high_acc': {'scaler': mlp_high_acc_scaler, 'model_path': model_high_acc_path}
     }
 
@@ -94,12 +94,10 @@ def build_and_train_model(X_train, y_train, X_valid, y_valid,partial_data = Fals
 
     # Build a simple Keras model
     model = Sequential([
-        Dense(200, activation='relu', input_dim=X_train_scaled.shape[1],kernel_regularizer=regularizers.l2(0.001)),
-        BatchNormalization(),
-        Dense(50, activation='relu',kernel_regularizer=regularizers.l2(0.001)),  # You can customize more layers as needed
+        Dense(32, activation='relu', input_dim=X_train_scaled.shape[1],kernel_regularizer=regularizers.l2(0.001)),
         BatchNormalization(),
         Dropout(0.1),
-        Dense(100, activation='relu',kernel_regularizer=regularizers.l2(0.001)),  # You can customize more layers as needed
+        Dense(32, activation = 'relu',kernel_regularizer=regularizers.l2(0.001)),
         BatchNormalization(),
         Dropout(0.1),
         Dense(2, activation='linear')  # Output layer for 2 regression outputs

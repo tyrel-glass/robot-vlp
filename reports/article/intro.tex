@@ -36,22 +36,10 @@ Visible Light Positioning (VLP) offers significant benefits for indoor robot nav
 Unlike GPS, which is unreliable indoors, VLP leverages pre-existing lighting infrastructure, to provide accurate localization information. 
 This makes it cost-effective and easily deployable in various indoor environments, including retail stores, warehouses, hospitals, and manufacturing facilities. 
 VLP provides high-precision positioning accuracy, typically in the centimeter range, enabling robots to navigate with precision and efficiency. 
-Additionally, VLP is not susceptible to signal degradation caused by obstacles or environmental factors, ensuring reliable performance even in complex indoor spaces. 
 Its compatibility with existing lighting infrastructure also facilitates seamless integration into smart building systems, further enhancing its utility for indoor robot navigation applications. 
 
-- encoding info in light
 
-- Receiving signal  
 
-- Extracting signal  
-
-- Localisation algorithm  
-
-\begin{figure}[h!]
-    \includegraphics[scale = 0.1]{{figures/vlp_function}}
-    \caption{grid of errors}
-    \label{fig:acc_grid}
-    \end{figure}
 
 \textbf{VLP to correct odometry drift}
 This paper presents a novel method of using a model with RNN architecture to combine both encoder and VLP data streams. This method combines the advantages, whilst reducing the downsides of both systems. 
@@ -64,12 +52,7 @@ The output of this model is an estimate of the current location and heading of t
     \end{figure}
 
 
-\textbf{Pretraining on real world VLP dataset}
 
-\textbf{Validation in real-world environment}
-
-\textbf{CNC}
-\textbf{Mobile robot}
 % ===================================================================================================================================================
 % ==================================================== INTRO END    =================================================================================
 % ===================================================================================================================================================
