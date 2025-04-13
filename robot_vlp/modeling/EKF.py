@@ -431,3 +431,80 @@ def tune_ekf(df_lst, prev_result=None, initial_guess=None):
     print(f"📌 Best Parameters: {optimized_params}")
 
     return optimized_params, result, optimization_progress
+
+
+
+
+
+class LiveEKF:
+    """
+    A wrapper for the Extended Kalman Filter (EKF) to support live prediction.
+    
+    The LiveEKF class maintains the current state and covariance and exposes a predict() method.
+    The predict() method accepts a new measurement sample, performs the EKF prediction and update steps,
+    updates the state, and returns the current state prediction.
+    
+    Required inputs at initialization:
+        - initial_state: Initial state vector [x, y, theta]
+        - initial_covariance: Initial covariance matrix (3x3)
+        - parameters: A dict containing noise scaling factors. Expected keys:
+            'Q_scale_d', 'Q_scale_theta', 'R_scale_pos'
+        - err_stats: A dict containing error statistics. Expected keys:
+            'R_pos', 'step_size', 'Q_theta', 'Q_theta_no_turn', 'Q_dist'
+    """
+    def __init__(self, initial_state, initial_covariance, parameters, err_stats):
+        self.x = np.array(initial_state)   # state vector [x, y, theta]
+        self.P = initial_covariance        # covariance matrix (3x3)
+        self.parameters = parameters       # e.g., {'Q_scale_d': ..., 'Q_scale_theta': ..., 'R_scale_pos': ...}
+        self.err_stats = err_stats         # e.g., {'R_pos': ..., 'step_size': ..., 'Q_theta': ..., 'Q_theta_no_turn': ..., 'Q_dist': ...}
+        self.last_position = self.x[:2].copy()
+        # Initialize transformation matrix G (it will be updated in each prediction step)
+        self.G = np.array([[0, 0],
+                           [0, 0],
+                           [0, 1]])
+    
+    def predict(self, d, delta_theta, z_meas):
+        """
+        Process a new measurement and update the EKF state.
+        
+        Arguments:
+            d : float
+                Measured distance (e.g. encoder_location_change)
+            delta_theta : float
+                Measured heading change in radians (e.g. encoder_heading_change_rad)
+            z_meas : array-like of shape (2,)
+                VLP measurement for position [vlp_x, vlp_y]
+        
+        Returns:
+            Updated state vector [x, y, theta]
+        """
+        # Calculate the process noise covariance for this step.
+        if abs(delta_theta) < (1/180 * np.pi):
+            heading_variance = self.err_stats['Q_theta_no_turn'] * self.parameters['Q_scale_theta']
+        else:
+            heading_variance = self.err_stats['Q_theta'] * self.parameters['Q_scale_theta']
+        step_variance = self.err_stats['Q_dist'] * self.parameters['Q_scale_d']
+        Q_step = np.diag([step_variance, heading_variance])
+        
+        # Compute the measurement noise covariance matrix R.
+        R = np.diag([
+            self.err_stats['R_pos'] * self.parameters['R_scale_pos'],
+            self.err_stats['R_pos'] * self.parameters['R_scale_pos'],
+            (self.err_stats['R_pos'] / (self.err_stats['step_size']**2)) * self.parameters['R_scale_pos']
+        ])
+        
+        # --- EKF Prediction Step ---
+        x_pred, P_pred = ekf_predict_with_heading(self.x, self.P, d, delta_theta, self.G, Q_step)
+        
+        # --- EKF Update Step ---
+        # z_meas is expected to be [vlp_x, vlp_y]. Heading will be computed using the previous position.
+        x_upd, P_upd = ekf_update_with_heading(x_pred, P_pred, z_meas, R, self.last_position)
+        
+        # Update stored state and covariance.
+        self.x = x_upd
+        self.P = P_upd
+        
+        # Update the last_position for next prediction.
+        self.last_position = self.x[:2].copy()
+        
+        return self.x
