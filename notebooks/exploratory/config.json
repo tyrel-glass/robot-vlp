@@ -1,0 +1,47 @@
+{
+  "best_architecture": {
+    "num_layers": 4,
+    "recurrent_units": [
+      32,
+      8,
+      16,
+      8
+    ]
+  },
+  "sequence_length": {
+    "input_length": 25,
+    "use_length": 20
+  },
+  "regularization_defaults": {
+    "dropout": [
+      0.0,
+      0.1,
+      0.0,
+      0.0
+    ],
+    "recurrent_dropout": [
+      0.2,
+      0.1,
+      0.2,
+      0.1
+    ],
+    "batch_norm": [
+      false,
+      false,
+      false,
+      false
+    ],
+    "layer_norm": [
+      false,
+      true,
+      true,
+      true
+    ]
+  },
+  "optimization_defaults": {
+    "lr": 0.005663272327474776,
+    "optimizer": "adam",
+    "scheduler": "cosine",
+    "decay_steps": 10000
+  }
+}

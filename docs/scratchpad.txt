@@ -1,0 +1,2 @@
+- need to split out the file specifying the generation of the robot paths from that of the actual robot tracing the paths
+
