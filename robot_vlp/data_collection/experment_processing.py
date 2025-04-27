@@ -20,6 +20,7 @@ app = typer.Typer()
 enc_per_cm =   39.816195443518865
 
 
+
 @app.command()
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
@@ -83,7 +84,7 @@ def process_robot_exp_file(input_file, vlp_model):
 # df['encoder_heading_change'] = df['encoder_heading_change_step'] / enc_per_degree
 # new test----------------
     def steps_to_ang(steps):
-        acw_line = np.poly1d([ 0.18811349, -0.83144983])
+        acw_line = np.poly1d([ 0.18816057, -0.82087375])
         cw_line  = np.poly1d([0.18951681, 1.00878798])
         if steps > 0:
             ang = cw_line(steps)

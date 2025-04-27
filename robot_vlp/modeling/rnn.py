@@ -9,7 +9,22 @@ from tensorflow.keras.models import Model
 from robot_vlp.modeling.rnn_config import GLOBAL_CONFIG
 
 
-feature_norm = layers.Normalization(axis=-1, name="feature_norm")
+
+global_norm = layers.Normalization(axis=-1, name="feature_norm")
+
+
+def clone_norm():
+    # grab its config & weights
+    cfg = global_norm.get_config()
+    wts = global_norm.get_weights()
+    # build a brand-new instance from that config
+    new = layers.Normalization.from_config(cfg)
+
+    seq_len     = GLOBAL_CONFIG["sequence_length"]["input_length"]
+    feature_dim = 8
+    new.build((None, seq_len, feature_dim))
+    new.set_weights(wts)
+    return new
 
 # Helper Function
 def slice_last_n_timesteps(n):
@@ -17,9 +32,11 @@ def slice_last_n_timesteps(n):
 
 # Stage 1: Architecture Tuning (unchanged, but using config for sequence length)
 def build_architecture_model(hp):
+
     seq_len = GLOBAL_CONFIG["sequence_length"]["use_length"]
     inputs = keras.layers.Input(shape=(GLOBAL_CONFIG["sequence_length"]["input_length"], 8), name="input")
-    x = feature_norm(inputs)
+    norm = clone_norm()
+    x = norm(inputs)
     x = slice_last_n_timesteps(seq_len)(x)
 
     fixed_dropout = 0.0
@@ -49,9 +66,9 @@ def build_regularization_model(hp):
     cfg = GLOBAL_CONFIG
     arch = cfg['best_architecture']
     seq_len = cfg['sequence_length']['use_length']
-
     inputs = keras.layers.Input(shape=(cfg['sequence_length']['input_length'], 8), name="input")
-    x = feature_norm(inputs)  
+    norm = clone_norm()
+    x = norm(inputs)  
     x = slice_last_n_timesteps(seq_len)(x)
 
     for i in range(arch['num_layers']):
@@ -88,6 +105,8 @@ def build_optimization_model(hp):
       • exponential: decay_steps ∈ [1k,10k], decay_rate ∈ [0.8,0.99]
     - Optimizer: Adam / RMSprop / SGD / Nadam
     """
+
+
     cfg = GLOBAL_CONFIG
     arch = cfg['best_architecture']
     seq_len = cfg['sequence_length']['use_length']
@@ -97,7 +116,8 @@ def build_optimization_model(hp):
     inputs = keras.layers.Input(
         shape=(cfg['sequence_length']['input_length'], 8)
     )
-    x = feature_norm(inputs)
+    norm = clone_norm()
+    x = norm(inputs)
     x = slice_last_n_timesteps(seq_len)(x)
 
     # 2) LSTM stack with your tuned regularization
@@ -133,18 +153,16 @@ def build_optimization_model(hp):
     # 4b) Scheduler choice
     sched_choice = hp.Choice("scheduler", ["none", "cosine", "exponential"])
     if sched_choice == "cosine":
-        decay_steps = hp.Int("decay_steps_cosine", 2000, 20000, step=2000)
+        decay_steps = hp.Int("decay_steps_cosine", 374*5, 374*50, step=374)
         schedule = keras.optimizers.schedules.CosineDecay(
             initial_learning_rate=lr,
             decay_steps=decay_steps
         )
-    elif sched_choice == "exponential":
-        decay_steps = hp.Int("decay_steps_exp", 1000, 10000, step=1000)
-        decay_rate  = hp.Float("decay_rate_exp", 0.8, 0.99)
-        schedule = keras.optimizers.schedules.ExponentialDecay(
-            initial_learning_rate=lr,
-            decay_steps=decay_steps,
-            decay_rate=decay_rate
+    elif sched_choice == "plateau":
+        # We'll ignore `schedule` and attach a callback instead
+        schedule = lr
+        plateau_cb = tf.keras.callbacks.ReduceLROnPlateau(
+        monitor="val_loss", factor=0.5, patience=3, min_lr=1e-6
         )
     else:
         schedule = lr  # constant learning rate
@@ -189,7 +207,8 @@ def build_stage4_model(hp):
     )
 
     # 3) Slice down to only the last `seq_len` steps
-    x = feature_norm(inputs)
+    norm = clone_norm()
+    x = norm(inputs)
     x = slice_last_n_timesteps(seq_len)(x)
 
 
@@ -275,9 +294,11 @@ def build_final_model():
     # 1) Input shape uses only the tuned window length
     inputs = keras.layers.Input(shape=(seq, 8), name='input')
 
-    # 2) Optional: feature normalization
+    # # 2) Optional: feature normalization
+    # norm = clone_norm()
+    x = global_norm(inputs)
 
-    x = feature_norm(inputs)
+    # x = inputs
 
 
 

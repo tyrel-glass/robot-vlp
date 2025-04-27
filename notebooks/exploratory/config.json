@@ -1,47 +1,38 @@
 {
   "best_architecture": {
-    "num_layers": 4,
+    "num_layers": 2,
     "recurrent_units": [
-      32,
-      8,
-      16,
-      8
+      64,
+      64
     ]
   },
   "sequence_length": {
     "input_length": 25,
-    "use_length": 20
+    "use_length": 25
   },
   "regularization_defaults": {
     "dropout": [
       0.0,
-      0.1,
-      0.0,
       0.0
     ],
     "recurrent_dropout": [
-      0.2,
-      0.1,
-      0.2,
-      0.1
+      0.0,
+      0.0
     ],
     "batch_norm": [
-      false,
-      false,
       false,
       false
     ],
     "layer_norm": [
       false,
-      true,
-      true,
-      true
+      false
     ]
   },
   "optimization_defaults": {
-    "lr": 0.005663272327474776,
-    "optimizer": "adam",
-    "scheduler": "cosine",
-    "decay_steps": 10000
+    "lr": 0.007558989095266069,
+    "scheduler": "exponential",
+    "optimizer": "nadam",
+    "decay_steps": 1000,
+    "decay_rate": 0.8729993507492468
   }
 }
