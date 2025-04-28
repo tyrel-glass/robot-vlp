@@ -2,8 +2,8 @@
   "best_architecture": {
     "num_layers": 2,
     "recurrent_units": [
-      64,
-      64
+      32,
+      8
     ]
   },
   "sequence_length": {
@@ -17,14 +17,14 @@
     ],
     "recurrent_dropout": [
       0.0,
-      0.0
+      0.1
     ],
     "batch_norm": [
       false,
       false
     ],
     "layer_norm": [
-      false,
+      true,
       false
     ]
   },

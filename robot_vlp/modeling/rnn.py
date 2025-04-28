@@ -13,19 +13,6 @@ from robot_vlp.modeling.rnn_config import GLOBAL_CONFIG
 global_norm = layers.Normalization(axis=-1, name="feature_norm")
 
 
-def clone_norm():
-    # grab its config & weights
-    cfg = global_norm.get_config()
-    wts = global_norm.get_weights()
-    # build a brand-new instance from that config
-    new = layers.Normalization.from_config(cfg)
-
-    seq_len     = GLOBAL_CONFIG["sequence_length"]["input_length"]
-    feature_dim = 8
-    new.build((None, seq_len, feature_dim))
-    new.set_weights(wts)
-    return new
-
 # Helper Function
 def slice_last_n_timesteps(n):
     return layers.Lambda(lambda t: t[:, -n:, :], name=f"slice_last_{n}")
@@ -35,8 +22,8 @@ def build_architecture_model(hp):
 
     seq_len = GLOBAL_CONFIG["sequence_length"]["use_length"]
     inputs = keras.layers.Input(shape=(GLOBAL_CONFIG["sequence_length"]["input_length"], 8), name="input")
-    norm = clone_norm()
-    x = norm(inputs)
+
+    x = global_norm(inputs)
     x = slice_last_n_timesteps(seq_len)(x)
 
     fixed_dropout = 0.0
@@ -67,8 +54,8 @@ def build_regularization_model(hp):
     arch = cfg['best_architecture']
     seq_len = cfg['sequence_length']['use_length']
     inputs = keras.layers.Input(shape=(cfg['sequence_length']['input_length'], 8), name="input")
-    norm = clone_norm()
-    x = norm(inputs)  
+
+    x = global_norm(inputs)  
     x = slice_last_n_timesteps(seq_len)(x)
 
     for i in range(arch['num_layers']):
@@ -116,8 +103,8 @@ def build_optimization_model(hp):
     inputs = keras.layers.Input(
         shape=(cfg['sequence_length']['input_length'], 8)
     )
-    norm = clone_norm()
-    x = norm(inputs)
+
+    x = global_norm(inputs)
     x = slice_last_n_timesteps(seq_len)(x)
 
     # 2) LSTM stack with your tuned regularization
@@ -207,8 +194,8 @@ def build_stage4_model(hp):
     )
 
     # 3) Slice down to only the last `seq_len` steps
-    norm = clone_norm()
-    x = norm(inputs)
+
+    x = global_norm(inputs)
     x = slice_last_n_timesteps(seq_len)(x)
 
 
