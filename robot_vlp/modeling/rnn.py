@@ -145,11 +145,13 @@ def build_optimization_model(hp):
             initial_learning_rate=lr,
             decay_steps=decay_steps
         )
-    elif sched_choice == "plateau":
-        # We'll ignore `schedule` and attach a callback instead
-        schedule = lr
-        plateau_cb = tf.keras.callbacks.ReduceLROnPlateau(
-        monitor="val_loss", factor=0.5, patience=3, min_lr=1e-6
+    elif sched_choice == "exponential":
+        decay_steps = hp.Int("decay_steps_exponential", 374*5, 374*50, step=374)
+        er = hp.Float("decay_rate_exp",    0.80,      0.99,        step=0.01)
+        schedule = keras.optimizers.schedules.ExponentialDecay(
+            initial_learning_rate=lr,
+            decay_steps=decay_steps,
+            decay_rate = er
         )
     else:
         schedule = lr  # constant learning rate

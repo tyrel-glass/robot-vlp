@@ -16,8 +16,8 @@
       0.0
     ],
     "recurrent_dropout": [
-      0.0,
-      0.1
+      0.1,
+      0.2
     ],
     "batch_norm": [
       false,
@@ -29,10 +29,8 @@
     ]
   },
   "optimization_defaults": {
-    "lr": 0.007558989095266069,
-    "scheduler": "exponential",
-    "optimizer": "nadam",
-    "decay_steps": 1000,
-    "decay_rate": 0.8729993507492468
+    "lr": 0.003425317024450299,
+    "scheduler": "none",
+    "optimizer": "adam"
   }
 }
