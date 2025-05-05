@@ -8,7 +8,7 @@
   },
   "sequence_length": {
     "input_length": 25,
-    "use_length": 25
+    "use_length": 20
   },
   "regularization_defaults": {
     "dropout": [
@@ -16,21 +16,23 @@
       0.0
     ],
     "recurrent_dropout": [
-      0.1,
-      0.2
+      0.0,
+      0.0
     ],
     "batch_norm": [
       false,
       false
     ],
     "layer_norm": [
-      true,
+      false,
       false
     ]
   },
   "optimization_defaults": {
-    "lr": 0.003425317024450299,
-    "scheduler": "none",
-    "optimizer": "adam"
+    "lr": 0.005044806672551905,
+    "scheduler": "exponential",
+    "optimizer": "nadam",
+    "decay_steps": 8602,
+    "decay_rate": 0.8300000000000001
   }
 }

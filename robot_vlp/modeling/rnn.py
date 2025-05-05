@@ -60,8 +60,14 @@ def build_regularization_model(hp):
 
     for i in range(arch['num_layers']):
         units = arch['recurrent_units'][i]
-        dr   = hp.Float(f"dropout_{i}", 0.0, 0.2, step=0.1)
-        rdr  = hp.Float(f"recurrent_dropout_{i}", 0.0, 0.2, step=0.1)
+        dr = hp.Choice(
+            f"dropout_{i}",
+            values=[0.0, 0.01, 0.025, 0.05]
+        )
+        rdr = hp.Choice(
+            f"recurrent_dropout_{i}",
+            values=[0.0, 0.01, 0.025, 0.05]
+        )
         return_sequences = (i < arch['num_layers'] - 1)
 
         x = layers.LSTM(units,
