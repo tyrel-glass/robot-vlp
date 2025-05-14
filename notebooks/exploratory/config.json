@@ -13,26 +13,24 @@
   "regularization_defaults": {
     "dropout": [
       0.0,
-      0.0
+      0.01
     ],
     "recurrent_dropout": [
-      0.0,
-      0.0
+      0.025,
+      0.05
     ],
     "batch_norm": [
       false,
       false
     ],
     "layer_norm": [
-      false,
+      true,
       false
     ]
   },
   "optimization_defaults": {
-    "lr": 0.005044806672551905,
-    "scheduler": "exponential",
-    "optimizer": "nadam",
-    "decay_steps": 8602,
-    "decay_rate": 0.8300000000000001
+    "lr": 0.0033727437553468355,
+    "scheduler": "none",
+    "optimizer": "nadam"
   }
 }
