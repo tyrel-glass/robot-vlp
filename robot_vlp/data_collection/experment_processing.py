@@ -199,25 +199,45 @@ def convert_df_to_dic(df):
 
 # ------------------------------------------------ Functions to process VLP data -------------------------------------
 
-import numpy as np
-import matplotlib.pyplot as plt
-from scipy.interpolate import griddata
 
-def plot_surface_irregular(df, cmap='viridis', grid_resolution=100):
-    # Creating 4 subplots for each target peak column
-    fig = plt.figure(figsize=(8, 6))
+
+from scipy.interpolate import griddata
+import matplotlib.pyplot as plt
+import numpy as np
+import matplotlib
+import matplotlib.gridspec as gridspec
+from mpl_toolkits.mplot3d import Axes3D  # Ensure 3D support is loaded
+
+
+def plot_surface_irregular(df, cmap='cividis', grid_resolution=100):
+    plt.rcParams.update({
+        "font.family": "serif",
+        "font.size": 8,
+        "axes.labelsize": 8,
+        "axes.titlesize": 8,
+        "xtick.labelsize": 7,
+        "ytick.labelsize": 7,
+        "pdf.fonttype": 42,
+        "ps.fonttype": 42
+    })
+
+    fig = plt.figure(figsize=(8.5, 6.2))
     target_peaks = ['L1', 'L2', 'L3', 'L4']
 
-    # Generate a regular grid for interpolation
+    # Grid for interpolation
     grid_x, grid_y = np.meshgrid(
         np.linspace(df["cnc_x"].min(), df["cnc_x"].max(), grid_resolution),
         np.linspace(df["cnc_y"].min(), df["cnc_y"].max(), grid_resolution)
     )
 
-    for i, peak in enumerate(target_peaks):
-        ax = fig.add_subplot(2, 2, i + 1, projection='3d')
+    # Use GridSpec for finer layout control
+    gs = gridspec.GridSpec(2, 2, figure=fig, wspace=0.4, hspace=0.1)
 
-        # Interpolate Z values onto the regular grid
+    for i, peak in enumerate(target_peaks):
+        row, col = divmod(i, 2)
+        ax = fig.add_subplot(gs[row, col], projection='3d')
+
+        # Interpolate surface
         grid_z = griddata(
             points=(df["cnc_x"], df["cnc_y"]),
             values=df[peak],
@@ -225,23 +245,73 @@ def plot_surface_irregular(df, cmap='viridis', grid_resolution=100):
             method='linear'
         )
 
-        # Plot the surface
-        surf = ax.plot_surface(grid_x, grid_y, grid_z, cmap=cmap)
+        # Plot surface
+        ax.plot_surface(grid_x, grid_y, grid_z, cmap=cmap, linewidth=0, antialiased=True)
 
-        # Label the axes
-        ax.set_title(f'{peak} Surface Plot')
-        ax.set_xlabel('X Location')
-        ax.set_ylabel('Y Location')
-        ax.set_zlabel(peak)
+        # Labels and formatting
+        ax.set_title(f'{peak} RSS Surface', pad=4)
+        ax.set_xlabel('X (mm)', labelpad=2)
+        ylab = ax.set_ylabel('Y (mm)', labelpad=2)
+        ylab.set_rotation(90)
+        zlab = ax.set_zlabel('RSS', labelpad=2)
+        zlab.set_rotation(90)
+    # Force manual layout to avoid clipping
+    plt.subplots_adjust(left=0.01, right=0.9, top=0.95, bottom=0.08)
 
-        # Add color bar for reference
-        fig.colorbar(surf, ax=ax, shrink=0.5, aspect=10)
 
-    # Adjust layout and show the plot
+    fig.suptitle("Interpolated RSS Surfaces for LEDs L1–L4", fontsize=9)
     plt.tight_layout()
-    plt.show()
     return fig
 
+
+import numpy as np
+import matplotlib.pyplot as plt
+from scipy.interpolate import griddata
+import pandas as pd
+
+def plot_rss_contours(df, cmap='cividis', grid_resolution=100):
+    import matplotlib.gridspec as gridspec
+
+    target_peaks = ['L1', 'L2', 'L3', 'L4']
+
+    # Set up figure and a grid with extra column for colorbar
+    fig = plt.figure(figsize=(3.5, 6))
+    gs = gridspec.GridSpec(4, 2, width_ratios=[20, 1], wspace=0.05, hspace=0.4)
+
+    contour_plot = None
+    axs = []
+    for i, peak in enumerate(target_peaks):
+        ax = fig.add_subplot(gs[i, 0])
+        axs.append(ax)
+
+        # Grid for interpolation
+        grid_x, grid_y = np.meshgrid(
+            np.linspace(df["cnc_x"].min(), df["cnc_x"].max(), grid_resolution),
+            np.linspace(df["cnc_y"].min(), df["cnc_y"].max(), grid_resolution)
+        )
+        grid_z = griddata(
+            (df["cnc_x"], df["cnc_y"]),
+            df[peak],
+            (grid_x, grid_y),
+            method='linear'
+        )
+
+        contour_plot = ax.contourf(grid_x, grid_y, grid_z, levels=50, cmap=cmap)
+        ax.set_title(f'{peak} RSS', fontsize=8, pad=2)
+        if i == len(target_peaks) - 1:
+            ax.set_xlabel('X (mm)', fontsize=8)
+        else:
+            ax.set_xticklabels([])
+        ax.set_ylabel('Y (mm)', fontsize=8)
+        ax.tick_params(axis='both', labelsize=7)
+
+    # Colorbar placed in the rightmost column of the grid
+    cax = fig.add_subplot(gs[:, 1])
+    cbar = fig.colorbar(contour_plot, cax=cax)
+    cbar.set_label('RSS', fontsize=8)
+    cbar.ax.tick_params(labelsize=7)
+
+    return fig
 
 def calc_encoder_heading_hist(df):
     # -------------  Calculate  --------

@@ -22,9 +22,10 @@ VLP_MODELS_DIR = MODELS_DIR / "vlp"
 TRAINING_LOGS_DIR = MODELS_DIR / "training_logs"
 
 REPORTS_DIR = PROJ_ROOT / "reports"
-FIGURES_DIR = REPORTS_DIR / "article/figures"
+FIGURES_DIR = REPORTS_DIR / "67c4db6d4bd74c401fb0585d/figures"
 TABLES_DIR = REPORTS_DIR / "tables"
 
+RESULTS_FILE = REPORTS_DIR / "67c4db6d4bd74c401fb0585d/results.tex"
 
 # If tqdm is installed, configure loguru with tqdm.write
 # https://github.com/Delgan/loguru/issues/135

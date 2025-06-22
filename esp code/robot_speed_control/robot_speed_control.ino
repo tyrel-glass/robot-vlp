@@ -153,7 +153,7 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(ENCA), encoderA_ISR, CHANGE);
   PCICR |= (1 << PCIE1);             // Enable pin change interrupts for PORTC
   PCMSK1 = (1 << PCINT8) | (1 << PCINT9);  // Enable PCINT for A0 (ENCA2) and A1 (ENCB2)
-  Serial.println("SETUP COMPLETE");
+  Serial.println("SETUP COMPLETED!");
 
   // setMotorState(1, 140, 0);
   // setMotorState(0, 140, 0);
@@ -239,6 +239,42 @@ void processCommand(String command) {
   } else if (command == "STOP") {
     stop();
     Serial.println("Motors stopped.");
+  } else if (command.startsWith("RUN:")) {
+    // Format: RUN:<motor>:<power>:<duration>
+    // Example: RUN:1:100:1000 or RUN:2:-120:1500
+    int firstColon = command.indexOf(':', 4);
+    int secondColon = command.indexOf(':', firstColon + 1);
+
+    if (firstColon == -1 || secondColon == -1) {
+      Serial.println("Invalid RUN command format.");
+      return;
+    }
+
+    int motor = command.substring(4, firstColon).toInt();
+    int power = command.substring(firstColon + 1, secondColon).toInt();
+    int duration = command.substring(secondColon + 1).toInt();
+
+    if (motor != 1 && motor != 2) {
+      Serial.println("Invalid motor number. Use 1 or 2.");
+      return;
+    }
+
+    int absPower = abs(power);
+    int direction = (power >= 0) ? 1 : 0;
+
+    Serial.print("Running Motor ");
+    Serial.print(motor);
+    Serial.print(" at power ");
+    Serial.print(power);
+    Serial.print(" for ");
+    Serial.print(duration);
+    Serial.println(" ms");
+
+    setMotorState(motor, absPower, direction);
+    delay(duration);
+    stop();
+
+    Serial.println("Done.");
   } else {
     Serial.println("Unknown command.");
   }
