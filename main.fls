@@ -1,0 +1,6 @@
+PWD /Users/tyrelglass/PhD/Repositories/robot-vlp
+INPUT /usr/local/texlive/2024/texmf.cnf
+INPUT /usr/local/texlive/2024/texmf-dist/web2c/texmf.cnf
+INPUT /usr/local/texlive/2024/texmf-var/web2c/pdftex/pdflatex.fmt
+INPUT reports/67c4db6d4bd74c401fb0585d/thesis/main.tex
+OUTPUT main.log

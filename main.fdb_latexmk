@@ -1,0 +1,13 @@
+# Fdb version 4
+["pdflatex"] 1761549869.10188 "reports/67c4db6d4bd74c401fb0585d/thesis/main.tex" "main.pdf" "main" 1761549869.38137 2
+  "/usr/local/texlive/2024/texmf-dist/web2c/texmf.cnf" 1708706663 41649 5d6ae549fbbcb850a863f69aa41f3d10 ""
+  "/usr/local/texlive/2024/texmf-var/web2c/pdftex/pdflatex.fmt" 1729415461 8221430 3c94e344c464687cfb05d7f6168edd40 ""
+  "/usr/local/texlive/2024/texmf.cnf" 1710266656 577 e590dabc9e28c5b61546e15f63eebcdf ""
+  "PhDThesisPSnPDF.cls" 0 -1 0 ""
+  "main.aux" 1761549869.10148 32 3985256e7290058c681f74d7a3565a19 "pdflatex"
+  "reports/67c4db6d4bd74c401fb0585d/thesis/main.tex" 1761203305.26718 6220 ce217999e76c747a571ab0eadb8f5b41 ""
+  (generated)
+  "main.aux"
+  "main.log"
+  "main.pdf"
+  (rewritten before read)
